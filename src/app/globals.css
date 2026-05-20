@@ -577,3 +577,30 @@ button { font-family: inherit; }
 @media (max-width: 800px) {
   .logos-strip { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* table */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.table th, .table td {
+  text-align: left;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.table th {
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--bg-soft);
+}
+.table tbody tr:hover { background: var(--bg-soft); }
+
+/* sticky aside */
+.sticky-aside { position: sticky; top: 100px; align-self: flex-start; }
+
+/* container narrow */
+.narrow { max-width: 760px; margin-left: auto; margin-right: auto; }
