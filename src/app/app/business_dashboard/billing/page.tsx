@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import ScreenBilling from '@/components/dashboard/screens/ScreenBilling';
 
-export default function Page() {
-  redirect("/app/business_dashboard");
+export default function BillingPage() {
+  return <ScreenBilling/>;
 }

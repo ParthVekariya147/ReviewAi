@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import ScreenFunnel from '@/components/dashboard/screens/ScreenFunnel';
 
-export default function Page() {
-  redirect("/app/business_dashboard");
+export default function FunnelPage() {
+  return <ScreenFunnel/>;
 }

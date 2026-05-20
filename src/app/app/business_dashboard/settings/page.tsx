@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import ScreenSettings from '@/components/dashboard/screens/ScreenSettings';
 
-export default function Page() {
-  redirect("/app/business_dashboard");
+export default function SettingsPage() {
+  return <ScreenSettings/>;
 }

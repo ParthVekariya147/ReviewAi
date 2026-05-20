@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import ScreenAnalytics from '@/components/dashboard/screens/ScreenAnalytics';
 
-export default function Page() {
-  redirect("/app/business_dashboard");
+export default function AnalyticsPage() {
+  return <ScreenAnalytics/>;
 }

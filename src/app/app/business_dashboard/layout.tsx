@@ -1,15 +1,25 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import ScreenDashboard from '@/components/dashboard/screens/ScreenDashboard';
+import Sidebar from '@/components/dashboard/Sidebar';
+import Topbar from '@/components/dashboard/Topbar';
 
-export default async function DashboardPage() {
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+
   if (!user) redirect('/login?next=/app/business_dashboard');
 
   const fullName: string = user.user_metadata?.full_name || '';
   const email: string = user.email ?? '';
   const ownerName = fullName || email.split('@')[0];
 
-  return <ScreenDashboard ownerName={ownerName}/>;
+  return (
+    <div className="lp-root lp-app">
+      <Sidebar ownerName={ownerName}/>
+      <main className="lp-main">
+        <Topbar ownerName={ownerName}/>
+        {children}
+      </main>
+    </div>
+  );
 }

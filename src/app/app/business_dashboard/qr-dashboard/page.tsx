@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import ScreenQR from '@/components/dashboard/screens/ScreenQR';
 
-export default function Page() {
-  redirect("/app/business_dashboard");
+export default function QRPage() {
+  return <ScreenQR/>;
 }
