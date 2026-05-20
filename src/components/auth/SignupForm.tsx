@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { createClient, supabaseConfigured } from "@/lib/supabase/client";
 import GoogleAuthButton from "./GoogleAuthButton";
 
@@ -30,7 +29,6 @@ interface FormState {
 }
 
 export default function SignupForm() {
-  const router = useRouter();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormState>({
     fullName: "", email: "", password: "",
