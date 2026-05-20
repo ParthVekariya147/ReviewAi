@@ -1,0 +1,8 @@
+{
+  "watch": [".env.local", ".env"],
+  "ext": "local,env",
+  "ignore": ["src/*", "node_modules/*", ".next/*"],
+  "exec": "next dev",
+  "signal": "SIGTERM",
+  "delay": 500
+}

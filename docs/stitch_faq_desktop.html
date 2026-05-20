@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FAQ - ReviewAI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "primary-fixed": "#eaddff",
+                      "surface-container-low": "#f2f3ff",
+                      "on-error-container": "#93000a",
+                      "on-tertiary-fixed-variant": "#713700",
+                      "surface-dim": "#d2d9f4",
+                      "secondary-fixed-dim": "#b4c5ff",
+                      "tertiary-container": "#a15100",
+                      "surface-container-high": "#e2e7ff",
+                      "on-secondary-fixed": "#00174b",
+                      "error-container": "#ffdad6",
+                      "secondary-container": "#316bf3",
+                      "inverse-surface": "#283044",
+                      "surface-tint": "#732ee4",
+                      "surface-variant": "#dae2fd",
+                      "on-tertiary-fixed": "#301400",
+                      "outline-variant": "#ccc3d8",
+                      "tertiary": "#7d3d00",
+                      "surface-container-lowest": "#ffffff",
+                      "surface-container": "#eaedff",
+                      "outline": "#7b7487",
+                      "primary-fixed-dim": "#d2bbff",
+                      "primary": "#630ed4",
+                      "on-secondary": "#ffffff",
+                      "surface": "#faf8ff",
+                      "tertiary-fixed-dim": "#ffb784",
+                      "tertiary-fixed": "#ffdcc6",
+                      "on-tertiary": "#ffffff",
+                      "error": "#ba1a1a",
+                      "on-tertiary-container": "#ffe0cd",
+                      "on-background": "#131b2e",
+                      "on-primary-container": "#ede0ff",
+                      "on-error": "#ffffff",
+                      "surface-bright": "#faf8ff",
+                      "on-surface": "#131b2e",
+                      "secondary": "#0051d5",
+                      "inverse-on-surface": "#eef0ff",
+                      "primary-container": "#7c3aed",
+                      "surface-container-highest": "#dae2fd",
+                      "on-primary-fixed": "#25005a",
+                      "inverse-primary": "#d2bbff",
+                      "background": "#faf8ff",
+                      "on-surface-variant": "#4a4455",
+                      "on-primary": "#ffffff",
+                      "on-secondary-fixed-variant": "#003ea8",
+                      "on-secondary-container": "#fefcff",
+                      "on-primary-fixed-variant": "#5a00c6",
+                      "secondary-fixed": "#dbe1ff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "base": "4px",
+                      "xs": "8px",
+                      "lg": "40px",
+                      "max-width": "1280px",
+                      "margin-desktop": "48px",
+                      "sm": "16px",
+                      "xl": "64px",
+                      "md": "24px",
+                      "margin-mobile": "16px",
+                      "gutter": "24px"
+              },
+              "fontFamily": {
+                      "headline-lg": [
+                              "Inter"
+                      ],
+                      "label-md": [
+                              "Inter"
+                      ],
+                      "body-lg": [
+                              "Inter"
+                      ],
+                      "headline-md": [
+                              "Inter"
+                      ],
+                      "display-lg": [
+                              "Inter"
+                      ],
+                      "display-lg-mobile": [
+                              "Inter"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "label-sm": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "label-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "1.4",
+                                      "letterSpacing": "0.01em",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "letterSpacing": "0",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "1.3",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "1.1",
+                                      "letterSpacing": "-0.04em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "display-lg-mobile": [
+                              "36px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "-0.03em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "letterSpacing": "0",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+        /* Hide default details marker */
+        details > summary {
+            list-style: none;
+        }
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+        /* Rotate icon on open */
+        details[open] summary .material-symbols-outlined {
+            transform: rotate(180deg);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background antialiased min-h-screen flex flex-col">
+<!-- TopAppBar -->
+<header class="sticky docked full-width top-0 z-50 bg-white/70 backdrop-blur-xl border-b border-outline-variant/20 shadow-sm">
+<div class="flex justify-between items-center w-full px-margin-mobile md:px-margin-desktop py-4 max-w-max-width mx-auto">
+<!-- Brand Logo -->
+<a class="font-headline-md text-headline-md font-black tracking-tighter text-primary flex items-center gap-2" href="#">
+                ReviewAI
+            </a>
+<!-- Navigation Links -->
+<nav class="hidden md:flex items-center gap-gutter">
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors hover:bg-primary-container/10 px-3 py-2 rounded-DEFAULT" href="#">Features</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors hover:bg-primary-container/10 px-3 py-2 rounded-DEFAULT" href="#">Pricing</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors hover:bg-primary-container/10 px-3 py-2 rounded-DEFAULT" href="#">About</a>
+<a class="font-label-md text-label-md text-primary font-bold border-b-2 border-primary px-3 py-2" href="#">FAQ</a>
+</nav>
+<!-- Actions -->
+<div class="flex items-center gap-sm">
+<a class="hidden md:block font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">Sign in</a>
+<a class="font-label-md text-label-md bg-gradient-to-r from-primary-container to-secondary-container text-white px-6 py-2 rounded-DEFAULT shadow-[0_4px_14px_0_rgba(124,58,237,0.39)] hover:shadow-[0_6px_20px_rgba(124,58,237,0.23)] hover:-translate-y-0.5 transition-all duration-200" href="#">Get Started</a>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-grow flex flex-col items-center w-full">
+<!-- Hero Search Section -->
+<section class="w-full relative pt-xl pb-lg px-margin-mobile md:px-margin-desktop flex flex-col items-center justify-center text-center overflow-hidden">
+<!-- Subtle background decorative blob -->
+<div class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-[400px] bg-primary/5 rounded-full blur-3xl -z-10"></div>
+<h1 class="font-display-lg text-display-lg-mobile md:text-display-lg mb-sm text-on-background">How can we help?</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mb-lg">Search our knowledge base or browse categories below to find answers to common questions about ReviewAI.</p>
+<!-- Search Bar -->
+<div class="w-full max-w-2xl relative group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors">search</span>
+<input class="w-full bg-surface-container-lowest border border-outline-variant/50 rounded-lg py-4 pl-12 pr-4 font-body-md text-body-md text-on-background focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none shadow-sm transition-all placeholder:text-outline/70" placeholder="Search for articles, guides, or keywords..." type="text"/>
+</div>
+</section>
+<!-- Categories Container -->
+<section class="w-full max-w-max-width px-margin-mobile md:px-margin-desktop py-lg">
+<div class="grid grid-cols-2 md:grid-cols-4 gap-md">
+<a class="flex flex-col items-center text-center p-md bg-surface-container-lowest/80 backdrop-blur-md border border-outline-variant/20 rounded-xl hover:border-primary/50 hover:shadow-md transition-all group" href="#">
+<div class="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center mb-sm group-hover:bg-primary-container/10 transition-colors">
+<span class="material-symbols-outlined text-primary">rocket_launch</span>
+</div>
+<h3 class="font-headline-md text-[18px] font-semibold text-on-background mb-1">General</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Getting started &amp; basics</p>
+</a>
+<a class="flex flex-col items-center text-center p-md bg-surface-container-lowest/80 backdrop-blur-md border border-outline-variant/20 rounded-xl hover:border-primary/50 hover:shadow-md transition-all group" href="#">
+<div class="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center mb-sm group-hover:bg-primary-container/10 transition-colors">
+<span class="material-symbols-outlined text-primary">person</span>
+</div>
+<h3 class="font-headline-md text-[18px] font-semibold text-on-background mb-1">Account</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Profile &amp; team settings</p>
+</a>
+<a class="flex flex-col items-center text-center p-md bg-surface-container-lowest/80 backdrop-blur-md border border-outline-variant/20 rounded-xl hover:border-primary/50 hover:shadow-md transition-all group" href="#">
+<div class="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center mb-sm group-hover:bg-primary-container/10 transition-colors">
+<span class="material-symbols-outlined text-primary">settings_applications</span>
+</div>
+<h3 class="font-headline-md text-[18px] font-semibold text-on-background mb-1">Technical</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant">API &amp; integrations</p>
+</a>
+<a class="flex flex-col items-center text-center p-md bg-surface-container-lowest/80 backdrop-blur-md border border-outline-variant/20 rounded-xl hover:border-primary/50 hover:shadow-md transition-all group" href="#">
+<div class="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center mb-sm group-hover:bg-primary-container/10 transition-colors">
+<span class="material-symbols-outlined text-primary">credit_card</span>
+</div>
+<h3 class="font-headline-md text-[18px] font-semibold text-on-background mb-1">Billing</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Plans &amp; payment info</p>
+</a>
+</div>
+</section>
+<!-- FAQ Accordion List -->
+<section class="w-full max-w-3xl px-margin-mobile md:px-margin-desktop py-lg">
+<h2 class="font-headline-lg text-headline-lg mb-md text-on-background">Frequently Asked Questions</h2>
+<div class="flex flex-col gap-sm">
+<!-- Accordion Item 1 (Open by default) -->
+<details class="group bg-surface-container-lowest border border-outline-variant/30 rounded-xl overflow-hidden shadow-sm" open="">
+<summary class="flex justify-between items-center p-md cursor-pointer font-headline-md text-[18px] font-semibold text-on-background hover:bg-surface-container/50 transition-colors select-none">
+                        How does ReviewAI collect reviews?
+                        <span class="material-symbols-outlined text-outline transition-transform duration-300">expand_more</span>
+</summary>
+<div class="px-md pb-md font-body-md text-body-md text-on-surface-variant border-t border-outline-variant/10 pt-sm">
+                        ReviewAI seamlessly integrates with major platforms like Google Maps, Yelp, and Trustpilot. We use authorized APIs to fetch your latest reviews in real-time, centralizing them in your dashboard for easy management and automated response generation.
+                    </div>
+</details>
+<!-- Accordion Item 2 -->
+<details class="group bg-surface-container-lowest border border-outline-variant/30 rounded-xl overflow-hidden shadow-sm">
+<summary class="flex justify-between items-center p-md cursor-pointer font-headline-md text-[18px] font-semibold text-on-background hover:bg-surface-container/50 transition-colors select-none">
+                        Can I customize the automated AI responses?
+                        <span class="material-symbols-outlined text-outline transition-transform duration-300">expand_more</span>
+</summary>
+<div class="px-md pb-md font-body-md text-body-md text-on-surface-variant border-t border-outline-variant/10 pt-sm">
+                        Absolutely. While our AI drafts high-quality, contextual responses out of the box, you can define your brand voice, set specific templates, and always require manual approval before any response is published publicly.
+                    </div>
+</details>
+<!-- Accordion Item 3 -->
+<details class="group bg-surface-container-lowest border border-outline-variant/30 rounded-xl overflow-hidden shadow-sm">
+<summary class="flex justify-between items-center p-md cursor-pointer font-headline-md text-[18px] font-semibold text-on-background hover:bg-surface-container/50 transition-colors select-none">
+                        What happens if I exceed my monthly review limit?
+                        <span class="material-symbols-outlined text-outline transition-transform duration-300">expand_more</span>
+</summary>
+<div class="px-md pb-md font-body-md text-body-md text-on-surface-variant border-t border-outline-variant/10 pt-sm">
+                        If you reach your plan's limit, we will continue to ingest new reviews so you don't lose data. However, automated AI responses will be paused until the next billing cycle. You will be notified in advance and have the option to upgrade your plan seamlessly.
+                    </div>
+</details>
+<!-- Accordion Item 4 -->
+<details class="group bg-surface-container-lowest border border-outline-variant/30 rounded-xl overflow-hidden shadow-sm">
+<summary class="flex justify-between items-center p-md cursor-pointer font-headline-md text-[18px] font-semibold text-on-background hover:bg-surface-container/50 transition-colors select-none">
+                        Is my customer data secure?
+                        <span class="material-symbols-outlined text-outline transition-transform duration-300">expand_more</span>
+</summary>
+<div class="px-md pb-md font-body-md text-body-md text-on-surface-variant border-t border-outline-variant/10 pt-sm">
+                        Security is our top priority. All data is encrypted in transit and at rest using industry-standard protocols. We are SOC 2 compliant and strictly adhere to GDPR regulations to ensure your and your customers' data remains private and secure.
+                    </div>
+</details>
+</div>
+</section>
+<!-- Contact Banner CTA -->
+<section class="w-full max-w-max-width px-margin-mobile md:px-margin-desktop py-xl mb-xl">
+<div class="bg-surface-container-low rounded-xl p-lg flex flex-col md:flex-row items-center justify-between gap-md border border-outline-variant/20 relative overflow-hidden">
+<!-- Decorative element -->
+<div class="absolute -right-20 -top-20 w-64 h-64 bg-primary-container/10 rounded-full blur-3xl pointer-events-none"></div>
+<div class="z-10 text-center md:text-left">
+<h3 class="font-headline-lg text-headline-lg text-on-background mb-xs">Still have questions?</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Our support team is ready to help you optimize your reputation management.</p>
+</div>
+<div class="z-10 shrink-0">
+<button class="font-label-md text-label-md bg-surface-container-lowest border border-outline-variant text-on-background px-6 py-3 rounded-DEFAULT hover:border-primary hover:text-primary transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px]">chat</span>
+                        Contact Support
+                    </button>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full bg-surface-container-lowest dark:bg-on-background border-t border-outline-variant/30">
+<div class="grid grid-cols-2 md:grid-cols-4 gap-gutter px-margin-mobile md:px-margin-desktop py-xl max-w-max-width mx-auto">
+<!-- Brand Column -->
+<div class="col-span-2 md:col-span-1 flex flex-col gap-sm">
+<span class="font-headline-md text-headline-md font-black text-primary dark:text-primary-fixed-dim">ReviewAI</span>
+<p class="font-label-md text-label-md text-on-surface-variant dark:text-surface-variant">© 2024 ReviewAI. AI-powered reputation management.</p>
+</div>
+<!-- Links Column 1 -->
+<div class="flex flex-col gap-sm">
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors" href="#">Features</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors" href="#">Pricing</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors" href="#">About</a>
+</div>
+<!-- Links Column 2 -->
+<div class="flex flex-col gap-sm">
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors" href="#">Contact</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors" href="#">Careers</a>
+</div>
+<!-- Links Column 3 -->
+<div class="flex flex-col gap-sm">
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors" href="#">Privacy</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors" href="#">Terms</a>
+</div>
+</div>
+</footer>
+</body></html>

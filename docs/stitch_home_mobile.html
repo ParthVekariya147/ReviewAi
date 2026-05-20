@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ReviewAI - Home</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-fixed": "#eaddff",
+                    "surface-container-low": "#f2f3ff",
+                    "on-error-container": "#93000a",
+                    "on-tertiary-fixed-variant": "#713700",
+                    "surface-dim": "#d2d9f4",
+                    "secondary-fixed-dim": "#b4c5ff",
+                    "tertiary-container": "#a15100",
+                    "surface-container-high": "#e2e7ff",
+                    "on-secondary-fixed": "#00174b",
+                    "error-container": "#ffdad6",
+                    "secondary-container": "#316bf3",
+                    "inverse-surface": "#283044",
+                    "surface-tint": "#732ee4",
+                    "surface-variant": "#dae2fd",
+                    "on-tertiary-fixed": "#301400",
+                    "outline-variant": "#ccc3d8",
+                    "tertiary": "#7d3d00",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container": "#eaedff",
+                    "outline": "#7b7487",
+                    "primary-fixed-dim": "#d2bbff",
+                    "primary": "#630ed4",
+                    "on-secondary": "#ffffff",
+                    "surface": "#faf8ff",
+                    "tertiary-fixed-dim": "#ffb784",
+                    "tertiary-fixed": "#ffdcc6",
+                    "on-tertiary": "#ffffff",
+                    "error": "#ba1a1a",
+                    "on-tertiary-container": "#ffe0cd",
+                    "on-background": "#131b2e",
+                    "on-primary-container": "#ede0ff",
+                    "on-error": "#ffffff",
+                    "surface-bright": "#faf8ff",
+                    "on-surface": "#131b2e",
+                    "secondary": "#0051d5",
+                    "inverse-on-surface": "#eef0ff",
+                    "primary-container": "#7c3aed",
+                    "surface-container-highest": "#dae2fd",
+                    "on-primary-fixed": "#25005a",
+                    "inverse-primary": "#d2bbff",
+                    "background": "#faf8ff",
+                    "on-surface-variant": "#4a4455",
+                    "on-primary": "#ffffff",
+                    "on-secondary-fixed-variant": "#003ea8",
+                    "on-secondary-container": "#fefcff",
+                    "on-primary-fixed-variant": "#5a00c6",
+                    "secondary-fixed": "#dbe1ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "base": "4px",
+                    "xs": "8px",
+                    "lg": "40px",
+                    "max-width": "1280px",
+                    "margin-desktop": "48px",
+                    "sm": "16px",
+                    "xl": "64px",
+                    "md": "24px",
+                    "margin-mobile": "16px",
+                    "gutter": "24px"
+            },
+            "fontFamily": {
+                    "headline-lg": ["Inter"],
+                    "label-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "display-lg": ["Inter"],
+                    "display-lg-mobile": ["Inter"],
+                    "body-md": ["Inter"],
+                    "label-sm": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "label-md": ["14px", {"lineHeight": "1.4", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                    "body-lg": ["18px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700"}],
+                    "display-lg-mobile": ["36px", {"lineHeight": "1.2", "letterSpacing": "-0.03em", "fontWeight": "700"}],
+                    "body-md": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                    "label-sm": ["12px", {"lineHeight": "1.2", "letterSpacing": "0.05em", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md text-body-md antialiased overflow-x-hidden w-full">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-xl dark:bg-inverse-surface/70 border-b border-outline-variant/20 shadow-sm">
+<div class="flex justify-between items-center w-full px-margin-mobile md:px-margin-desktop py-4 max-w-max-width mx-auto">
+<div class="font-headline-md text-headline-md font-black tracking-tighter text-primary dark:text-primary-fixed-dim">
+                ReviewAI
+            </div>
+<!-- Mobile Menu Toggle (Visible only on mobile) -->
+<button class="md:hidden text-primary dark:text-primary-fixed-dim p-2 rounded-full hover:bg-primary-container/10 dark:hover:bg-primary-fixed/10 transition-all">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">menu</span>
+</button>
+<!-- Desktop Nav (Hidden on mobile) -->
+<nav class="hidden md:flex items-center gap-6">
+<a class="font-label-md text-label-md text-primary dark:text-primary-fixed-dim font-bold border-b-2 border-primary py-1" href="#">Features</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-surface-variant hover:text-primary transition-colors py-1" href="#">Pricing</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-surface-variant hover:text-primary transition-colors py-1" href="#">About</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-surface-variant hover:text-primary transition-colors py-1" href="#">FAQ</a>
+</nav>
+<div class="hidden md:flex items-center gap-4">
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">Sign in</a>
+<a class="bg-gradient-to-r from-[#7C3AED] to-[#2563EB] text-white font-label-md text-label-md px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all" href="#">Get Started</a>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="pt-24 pb-24 px-margin-mobile w-full flex flex-col gap-xl">
+<!-- Hero Section -->
+<section class="flex flex-col gap-md items-start text-left pt-8">
+<div class="inline-flex items-center gap-2 px-3 py-1 bg-surface-container-high rounded-full font-label-sm text-label-sm text-primary">
+<span class="material-symbols-outlined text-[16px]">stars</span>
+<span>AI-Powered Reputation</span>
+</div>
+<h1 class="font-display-lg-mobile text-display-lg-mobile text-on-background">
+                Automate your <br/> <span class="text-primary">review management.</span>
+</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">
+                Respond to customer feedback in seconds, generate intelligent insights, and boost your online presence effortlessly.
+            </p>
+<div class="flex flex-col w-full gap-3 mt-4">
+<button class="w-full bg-gradient-to-r from-[#7C3AED] to-[#2563EB] text-white font-label-md text-label-md px-6 py-4 rounded-lg shadow-sm hover:shadow-md transition-all text-center flex items-center justify-center gap-2">
+                    Get Started Free
+                    <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+<button class="w-full bg-transparent border border-outline text-on-surface-variant font-label-md text-label-md px-6 py-4 rounded-lg hover:text-primary transition-colors text-center">
+                    View Pricing
+                </button>
+</div>
+</section>
+<!-- Dashboard Showcase -->
+<section class="relative w-full rounded-2xl overflow-hidden shadow-lg border border-outline-variant/30 bg-white/70 backdrop-blur-md p-2">
+<img alt="Mobile Dashboard" class="w-full h-auto rounded-xl object-cover" data-alt="A sleek, modern mobile dashboard UI displayed on a smartphone screen. The interface features clean white backgrounds, vibrant purple and blue gradient accents, and subtle glassmorphism effects. Data visualizations including soft glowing line charts and rounded bento-box style summary cards are visible. The overall aesthetic is professional, minimalist, and highly polished, reflecting an enterprise-grade SaaS application designed for clarity." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDHHc54Lkbc95ld0c5oIveJpKKN2qFKDtOMykslNz8YvFr0eciPok2TiqQrm8bg3fzLP5V9yhZpOnjZKEpbr6WOSI_w3qcXQ9dj_9_9VWB_MNnQ2IbCFpDDd7LjGycDABCYfndLtOsvFfKbUjF930KF6r8vzwQaEr_Ydj9bT8JA4NJ6edmbXMvBjq-F2NmTp2tn58K5SFdr83a66XLhrP_yC01EsOQdIuR4yTM1NaFcZhGmI8Uzj0gYrEs-f1UpRkQ-iuJeuEtN1IMq"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent flex items-end justify-center pb-6 pointer-events-none">
+</div>
+</section>
+<!-- Features Stack (Bento inspired) -->
+<section class="flex flex-col gap-sm">
+<h2 class="font-headline-md text-headline-md text-on-background mb-4">Core Capabilities</h2>
+<div class="bg-white/70 backdrop-blur-xl border border-outline-variant/20 p-6 rounded-2xl shadow-sm flex flex-col gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-container/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">auto_awesome</span>
+</div>
+<h3 class="font-headline-lg text-headline-lg text-[20px] text-on-background">Auto-Replies</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Intelligent, context-aware responses generated instantly for Google and Yelp reviews.</p>
+</div>
+<div class="bg-surface-container-low border border-outline-variant/20 p-6 rounded-2xl shadow-sm flex flex-col gap-3">
+<div class="w-10 h-10 rounded-full bg-secondary-container/10 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined">monitoring</span>
+</div>
+<h3 class="font-headline-lg text-headline-lg text-[20px] text-on-background">Sentiment Analysis</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Track customer emotions over time with beautiful, easy-to-read data visualizations.</p>
+</div>
+<div class="bg-white/70 backdrop-blur-xl border border-outline-variant/20 p-6 rounded-2xl shadow-sm flex flex-col gap-3">
+<div class="w-10 h-10 rounded-full bg-tertiary-container/10 flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined">hub</span>
+</div>
+<h3 class="font-headline-lg text-headline-lg text-[20px] text-on-background">Multi-Platform Sync</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Manage all your online locations from a single, unified inbox.</p>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full bg-surface-container-lowest dark:bg-on-background border-t border-outline-variant/30">
+<div class="grid grid-cols-2 md:grid-cols-4 gap-gutter px-margin-mobile md:px-margin-desktop py-xl max-w-max-width mx-auto">
+<div class="col-span-2 mb-8 md:mb-0">
+<div class="font-headline-md text-headline-md font-black text-primary dark:text-primary-fixed-dim mb-4">
+                    ReviewAI
+                </div>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                    © 2024 ReviewAI. AI-powered reputation management.
+                </p>
+</div>
+<div class="flex flex-col gap-3">
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors" href="#">Features</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors" href="#">Pricing</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors" href="#">About</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors" href="#">Contact</a>
+</div>
+<div class="flex flex-col gap-3">
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors" href="#">Careers</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors" href="#">Privacy</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors" href="#">Terms</a>
+</div>
+</div>
+</footer>
+</body></html>
