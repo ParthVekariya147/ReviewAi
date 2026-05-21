@@ -26,7 +26,19 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(code);
+
+    if (!error && session?.user) {
+      // New user with no business → send to onboarding
+      const { data: biz } = await supabase
+        .from('businesses')
+        .select('id, onboarding_complete')
+        .eq('owner_id', session.user.id)
+        .maybeSingle();
+
+      const dest = biz?.onboarding_complete ? next : '/app/onboarding';
+      return NextResponse.redirect(new URL(dest, origin));
+    }
 
     if (!error) {
       return NextResponse.redirect(new URL(next, origin));

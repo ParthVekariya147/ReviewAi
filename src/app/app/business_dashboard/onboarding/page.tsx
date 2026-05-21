@@ -1,5 +1,6 @@
-import ScreenOnboarding from '@/components/dashboard/screens/ScreenOnboarding';
+import { redirect } from 'next/navigation';
 
-export default function OnboardingPage() {
-  return <ScreenOnboarding/>;
+// Legacy path — all traffic redirected to the new full-screen onboarding route
+export default async function OnboardingPage() {
+  redirect('/app/onboarding');
 }

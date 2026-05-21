@@ -1,8 +1,46 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import useSWR from 'swr';
 import type { IconName } from '../ui';
-import { Icon, Card, CardHeader, Btn, Badge, Counter, Chart, Heatmap, Switch, QRCanvas, fmt, pct, dayLabels } from '../ui';
+import {
+  Icon, Card, CardHeader, Btn, Badge, Counter,
+  Switch, QRCanvas, fmt, pct,
+} from '../ui';
+
+const fetcher = (url: string) =>
+  fetch(url).then(r => { if (!r.ok) throw new Error('fetch failed'); return r.json(); });
+
+const TONES = ['primary', 'violet', 'cyan', 'success', 'warning'] as const;
+
+// ── types ─────────────────────────────────────────────────────
+
+interface QRCode {
+  id:             string;
+  token:          string;
+  campaign_name:  string;
+  status:         string;
+  dynamic:        boolean;
+  ab_testing:     boolean;
+  pause_fallback: boolean;
+  created_at:     string;
+}
+
+interface OverviewCampaign {
+  id:         string;
+  scans:      number;
+  completes:  number;
+  conversion: number;
+}
+
+interface MergedCampaign extends QRCode {
+  scans:      number;
+  completes:  number;
+  conversion: number;
+  tone:       string;
+}
+
+// ── sub-components ───────────────────────────────────────────
 
 function PageHeader({ title, sub, actions }: { title: string; sub?: string; actions?: React.ReactNode }) {
   return (
@@ -16,141 +54,329 @@ function PageHeader({ title, sub, actions }: { title: string; sub?: string; acti
   );
 }
 
-function MicroStat({ label, value, suffix, icon }: { label: string; value: number; suffix?: string; icon: IconName; tone?: string }) {
+function MicroStat({ label, value, suffix, icon }: { label: string; value: number; suffix?: string; icon: IconName }) {
   return (
     <div className="lp-microstat">
-      <div className="lp-microstat-label"><Icon name={icon} size={12}/> {label}</div>
-      <div className="lp-microstat-val"><Counter value={value} suffix={suffix || ''}/></div>
+      <div className="lp-microstat-label"><Icon name={icon} size={12} /> {label}</div>
+      <div className="lp-microstat-val"><Counter value={value} suffix={suffix ?? ''} /></div>
     </div>
   );
 }
 
-const campaigns = [
-  { id: 'fc-2k4', name: 'Front Counter',  url: 'reevo.io/r/fc-2k4', scans: 1284, conv: 0.412, status: 'live',   color: 'primary' },
-  { id: 'tt-7j1', name: 'Table Tents',    url: 'reevo.io/r/tt-7j1', scans: 942,  conv: 0.387, status: 'live',   color: 'violet' },
-  { id: 'rc-9m2', name: 'Receipts',       url: 'reevo.io/r/rc-9m2', scans: 614,  conv: 0.341, status: 'live',   color: 'cyan' },
-  { id: 'le-4p8', name: 'Loyalty Email',  url: 'reevo.io/r/le-4p8', scans: 211,  conv: 0.298, status: 'paused', color: 'warning' },
-  { id: 'ev-3k7', name: 'Patio Event',    url: 'reevo.io/r/ev-3k7', scans: 89,   conv: 0.221, status: 'draft',  color: 'neutral' },
-];
+function SkeletonList() {
+  return (
+    <div style={{ padding: '8px 0' }}>
+      {[1, 2, 3].map(i => (
+        <div key={i} style={{ padding: '12px 18px', display: 'flex', gap: 12, alignItems: 'center' }}>
+          <div style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--lp-border)' }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ width: 110, height: 11, background: 'var(--lp-border)', borderRadius: 4, marginBottom: 6 }} />
+            <div style={{ width: 80, height: 9, background: 'var(--lp-border)', borderRadius: 4 }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
-export default function ScreenQR() {
-  const [selected, setSelected] = useState('fc-2k4');
-  const current = campaigns.find(c => c.id === selected)!;
-  const url = `https://${current.url}`;
+// ── create modal ─────────────────────────────────────────────
+
+function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (id: string) => void }) {
+  const [name, setName]       = useState('');
+  const [saving, setSaving]   = useState(false);
+  const [err, setErr]         = useState('');
+  const inputRef              = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) { setErr('Campaign name is required'); return; }
+    setSaving(true);
+    setErr('');
+    const res  = await fetch('/api/qr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ campaign_name: name.trim(), status: 'draft' }),
+    });
+    const json = await res.json();
+    if (!res.ok) { setErr(json.error ?? 'Failed to create'); setSaving(false); return; }
+    onCreated(json.code.id);
+  }
 
   return (
-    <div className="lp-page">
-      <PageHeader
-        title="QR codes"
-        sub="Generate, customize and track QR campaigns"
-        actions={
-          <>
-            <Btn icon="package">Order printed materials</Btn>
-            <Btn variant="primary" icon="plus">New campaign</Btn>
-          </>
-        }
-      />
-
-      <div className="lp-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 16, alignItems: 'start' }}>
-        <div className="lp-stack">
-          <Card>
-            <div className="lp-flex" style={{ gap: 28, alignItems: 'flex-start' }}>
-              <div>
-                <div className="lp-qr-frame" style={{ borderColor: `var(--lp-${current.color})` }}>
-                  <QRCanvas value={url} size={220} color="#0A0B14" bg="#FFFFFF" radius={16}/>
-                </div>
-                <div className="lp-flex" style={{ gap: 8, marginTop: 12, justifyContent: 'center' }}>
-                  <Btn icon="download" size="sm">PNG</Btn>
-                  <Btn icon="download" size="sm">PDF</Btn>
-                  <Btn icon="download" size="sm">SVG</Btn>
-                </div>
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="lp-flex lp-flex-between" style={{ marginBottom: 6 }}>
-                  <h2 className="lp-h2" style={{ fontSize: 22, margin: 0 }}>{current.name}</h2>
-                  <Badge tone={current.status === 'live' ? 'success' : current.status === 'paused' ? 'warning' : 'neutral'} dot>{current.status}</Badge>
-                </div>
-                <div className="lp-flex" style={{ gap: 8, alignItems: 'center', marginBottom: 18 }}>
-                  <span className="lp-link-pill"><Icon name="link" size={12}/> {current.url}</span>
-                  <Btn variant="ghost" size="sm" icon="copy"/>
-                  <Btn variant="ghost" size="sm" icon="external"/>
-                </div>
-                <div className="lp-grid lp-grid-3" style={{ gap: 10, marginBottom: 18 }}>
-                  <MicroStat label="Total scans" value={current.scans} icon="qr"/>
-                  <MicroStat label="Conversion" value={Math.round(current.conv * 100)} suffix="%" icon="trendUp" tone="success"/>
-                  <MicroStat label="Avg. daily" value={Math.round(current.scans / 30)} icon="bars" tone="violet"/>
-                </div>
-                <CardHeader title="Last 14 days" subtitle="Scans per day"/>
-                <Chart
-                  data={dayLabels(14).map((x, i) => ({ x, scans: Math.round(current.scans / 30 * (1 + Math.sin(i * 0.7) * 0.4 + Math.random() * 0.3)) }))}
-                  keys={['scans']} colors={[current.color]} kind="area" height={170} yTicks={3}
-                />
-              </div>
-            </div>
-          </Card>
-
-          <Card>
-            <CardHeader
-              title="Scan heatmap"
-              subtitle="When customers scan — by day of week × hour"
-              action={<Btn variant="ghost" size="sm" iconRight="chevronD">This month</Btn>}
-            />
-            <div className="lp-heat-wrap">
-              <div className="lp-heat-y">
-                {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => <span key={d}>{d}</span>)}
-              </div>
-              <Heatmap rows={7} cols={24}
-                data={Array.from({ length: 7 * 24 }, (_, i) => {
-                  const day = Math.floor(i / 24), hr = i % 24;
-                  const peak = (hr >= 11 && hr <= 14) || (hr >= 18 && hr <= 21);
-                  const weekend = day >= 5;
-                  return Math.round((peak ? 18 : 4) * (weekend ? 1.4 : 1) * (0.6 + Math.random() * 0.8));
-                })}
-                max={30}
-                tone={current.color}
-              />
-            </div>
-            <div className="lp-heat-x">
-              {[0,6,12,18,23].map(h => <span key={h}>{h}:00</span>)}
-            </div>
-          </Card>
-        </div>
-
-        <div className="lp-stack" style={{ position: 'sticky', top: 12 }}>
-          <Card padded={false}>
-            <div style={{ padding: '16px 18px 6px' }}>
-              <CardHeader title="Campaigns" subtitle={`${campaigns.length} total · ${campaigns.filter(c => c.status === 'live').length} live`}/>
-            </div>
-            <div className="lp-camp-list">
-              {campaigns.map(c => (
-                <button key={c.id} onClick={() => setSelected(c.id)} className={`lp-camp-row ${selected === c.id ? 'is-on' : ''}`}>
-                  <div className="lp-camp-thumb" style={{ background: `var(--lp-${c.color}-soft)`, color: `var(--lp-${c.color})` }}>
-                    <Icon name="qr" size={14}/>
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="lp-camp-name">{c.name}</div>
-                    <div className="lp-muted lp-truncate" style={{ fontSize: 11 }}>{c.url}</div>
-                  </div>
-                  <div className="lp-camp-meta">
-                    <div>{fmt(c.scans)}</div>
-                    <div className="lp-muted" style={{ fontSize: 11 }}>{pct(c.conv)}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
-            <div style={{ padding: '10px 16px 16px' }}>
-              <Btn variant="ghost" icon="plus" className="lp-block">Create campaign</Btn>
-            </div>
-          </Card>
-
-          <Card>
-            <CardHeader title="Dynamic QR" subtitle="One code, swappable destination"/>
-            <Switch label="Dynamic redirect" sub="Change destination without reprinting" checked={true} onChange={() => {}}/>
-            <Switch label="Pause campaign" sub="Customers see a friendly fallback" checked={false} onChange={() => {}}/>
-            <Switch label="Enable A/B testing" sub="Split traffic between funnel variants" checked={false} onChange={() => {}}/>
-          </Card>
-        </div>
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+    }} onClick={onClose}>
+      <div style={{
+        background: 'var(--lp-surface)', borderRadius: 14, padding: 28,
+        width: 400, boxShadow: '0 24px 64px rgba(0,0,0,0.3)',
+      }} onClick={e => e.stopPropagation()}>
+        <h2 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700 }}>New QR campaign</h2>
+        <p style={{ margin: '0 0 20px', fontSize: 13, color: 'var(--lp-fg-muted)' }}>
+          Give it a descriptive name — e.g. "Front Counter", "Table Tents".
+        </p>
+        <form onSubmit={submit}>
+          <input
+            ref={inputRef}
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Campaign name"
+            style={{
+              width: '100%', boxSizing: 'border-box', padding: '10px 14px',
+              borderRadius: 8, border: '1.5px solid var(--lp-border)',
+              background: 'var(--lp-bg)', fontSize: 14, marginBottom: 12, outline: 'none',
+            }}
+          />
+          {err && <div style={{ color: 'var(--lp-danger)', fontSize: 12, marginBottom: 10 }}>{err}</div>}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Btn variant="ghost" onClick={onClose} type="button">Cancel</Btn>
+            <Btn variant="primary" type="submit">{saving ? 'Creating…' : 'Create campaign'}</Btn>
+          </div>
+        </form>
       </div>
     </div>
+  );
+}
+
+// ── main component ───────────────────────────────────────────
+
+export default function ScreenQR() {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [creating,   setCreating]   = useState(false);
+  const [patching,   setPatching]   = useState(false);
+
+  const { data: qrData,       mutate: mutateQR }  = useSWR<{ codes: QRCode[] }>('/api/qr', fetcher);
+  const { data: overviewData }                     = useSWR<{ campaigns: OverviewCampaign[] }>('/api/dashboard/overview', fetcher);
+
+  // Merge QR codes with analytics stats from overview
+  const codes: MergedCampaign[] = (qrData?.codes ?? []).map((qr, i) => {
+    const stats = (overviewData?.campaigns ?? []).find(c => c.id === qr.id);
+    return {
+      ...qr,
+      scans:      stats?.scans      ?? 0,
+      completes:  stats?.completes  ?? 0,
+      conversion: stats?.conversion ?? 0,
+      tone:       TONES[i % TONES.length],
+    };
+  });
+
+  const liveCount  = codes.filter(c => c.status === 'live').length;
+  const effectiveId = selectedId ?? codes[0]?.id ?? null;
+  const current     = codes.find(c => c.id === effectiveId) ?? null;
+
+  // Build the funnel URL for the QR canvas
+  const origin  = typeof window !== 'undefined' ? window.location.origin : '';
+  const funnelUrl = current ? `${origin}/r/${current.token}` : '';
+
+  // Copy URL to clipboard
+  function copyUrl() {
+    if (funnelUrl) navigator.clipboard.writeText(funnelUrl);
+  }
+
+  // PATCH a single field on the current campaign
+  async function patch(field: string, value: unknown) {
+    if (!current || patching) return;
+    setPatching(true);
+    await fetch(`/api/qr/${current.id}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ [field]: value }),
+    });
+    await mutateQR();
+    setPatching(false);
+  }
+
+  // Toggle live/paused via the status field
+  async function toggleLive() {
+    if (!current) return;
+    const next = current.status === 'live' ? 'paused' : 'live';
+    await patch('status', next);
+  }
+
+  return (
+    <>
+      {creating && (
+        <CreateModal
+          onClose={() => setCreating(false)}
+          onCreated={id => { setCreating(false); mutateQR(); setSelectedId(id); }}
+        />
+      )}
+
+      <div className="lp-page">
+        <PageHeader
+          title="QR codes"
+          sub="Generate, customize and track QR campaigns"
+          actions={
+            <>
+              <Btn icon="package">Order printed materials</Btn>
+              <Btn variant="primary" icon="plus" onClick={() => setCreating(true)}>New campaign</Btn>
+            </>
+          }
+        />
+
+        <div className="lp-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 16, alignItems: 'start' }}>
+
+          {/* ── Detail panel ── */}
+          <div className="lp-stack">
+            {!current ? (
+              <Card>
+                <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--lp-fg-muted)' }}>
+                  {qrData ? (
+                    <>No campaigns yet. <button className="lp-link" onClick={() => setCreating(true)}>Create your first →</button></>
+                  ) : 'Loading…'}
+                </div>
+              </Card>
+            ) : (
+              <>
+                <Card>
+                  <div className="lp-flex" style={{ gap: 28, alignItems: 'flex-start' }}>
+                    {/* QR image */}
+                    <div>
+                      <div className="lp-qr-frame" style={{ borderColor: `var(--lp-${current.tone})` }}>
+                        <QRCanvas value={funnelUrl || 'https://reevo.io'} size={220} color="#0A0B14" bg="#FFFFFF" radius={16} />
+                      </div>
+                      <div className="lp-flex" style={{ gap: 8, marginTop: 12, justifyContent: 'center' }}>
+                        <a href={`/api/qr/${current.id}/image`} download={`${current.campaign_name}.png`}>
+                          <Btn icon="download" size="sm">PNG</Btn>
+                        </a>
+                        <Btn icon="download" size="sm">PDF</Btn>
+                        <Btn icon="download" size="sm">SVG</Btn>
+                      </div>
+                    </div>
+
+                    {/* Campaign info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="lp-flex lp-flex-between" style={{ marginBottom: 6 }}>
+                        <h2 className="lp-h2" style={{ fontSize: 22, margin: 0 }}>{current.campaign_name}</h2>
+                        <Badge
+                          tone={current.status === 'live' ? 'success' : current.status === 'paused' ? 'warning' : 'neutral'}
+                          dot
+                        >
+                          {current.status}
+                        </Badge>
+                      </div>
+
+                      <div className="lp-flex" style={{ gap: 8, alignItems: 'center', marginBottom: 18 }}>
+                        <span className="lp-link-pill"><Icon name="link" size={12} /> {origin}/r/{current.token}</span>
+                        <Btn variant="ghost" size="sm" icon="copy" onClick={copyUrl} />
+                        <a href={funnelUrl} target="_blank" rel="noopener noreferrer">
+                          <Btn variant="ghost" size="sm" icon="external" />
+                        </a>
+                      </div>
+
+                      <div className="lp-grid lp-grid-3" style={{ gap: 10, marginBottom: 18 }}>
+                        <MicroStat label="Total scans"  value={current.scans}      icon="qr" />
+                        <MicroStat label="Conversion"   value={current.conversion} suffix="%" icon="trendUp" />
+                        <MicroStat label="Completed"    value={current.completes}  icon="check" />
+                      </div>
+
+                      <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                        <Btn
+                          variant={current.status === 'live' ? 'ghost' : 'primary'}
+                          icon={current.status === 'live' ? 'play' : 'play'}
+                          size="sm"
+                          onClick={toggleLive}
+                        >
+                          {current.status === 'live' ? 'Pause campaign' : 'Go live'}
+                        </Btn>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Heatmap placeholder */}
+                <Card>
+                  <CardHeader
+                    title="Scan activity"
+                    subtitle={`${fmt(current.scans)} total scans · ${current.conversion.toFixed(1)}% conversion`}
+                  />
+                  <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--lp-fg-muted)', fontSize: 13 }}>
+                    Per-campaign daily breakdown coming in the next update.
+                    <br />
+                    <span style={{ fontSize: 12 }}>See the Analytics tab for business-wide hourly heatmap.</span>
+                  </div>
+                </Card>
+              </>
+            )}
+          </div>
+
+          {/* ── Sidebar ── */}
+          <div className="lp-stack" style={{ position: 'sticky', top: 12 }}>
+            {/* Campaign list */}
+            <Card padded={false}>
+              <div style={{ padding: '16px 18px 6px' }}>
+                <CardHeader
+                  title="Campaigns"
+                  subtitle={`${codes.length} total · ${liveCount} live`}
+                />
+              </div>
+
+              {!qrData ? <SkeletonList /> : (
+                <div className="lp-camp-list">
+                  {codes.length === 0 ? (
+                    <div style={{ padding: '20px 18px', color: 'var(--lp-fg-muted)', fontSize: 13 }}>
+                      No campaigns yet.
+                    </div>
+                  ) : codes.map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => setSelectedId(c.id)}
+                      className={`lp-camp-row ${effectiveId === c.id ? 'is-on' : ''}`}
+                    >
+                      <div className="lp-camp-thumb" style={{ background: `var(--lp-${c.tone}-soft)`, color: `var(--lp-${c.tone})` }}>
+                        <Icon name="qr" size={14} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="lp-camp-name">{c.campaign_name}</div>
+                        <div className="lp-muted lp-truncate" style={{ fontSize: 11 }}>
+                          /r/{c.token}
+                        </div>
+                      </div>
+                      <div className="lp-camp-meta">
+                        <div>{fmt(c.scans)}</div>
+                        <div className="lp-muted" style={{ fontSize: 11 }}>{c.conversion.toFixed(1)}%</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ padding: '10px 16px 16px' }}>
+                <Btn variant="ghost" icon="plus" className="lp-block" onClick={() => setCreating(true)}>
+                  Create campaign
+                </Btn>
+              </div>
+            </Card>
+
+            {/* Settings toggles */}
+            {current && (
+              <Card>
+                <CardHeader title="Campaign settings" subtitle={current.campaign_name} />
+                <Switch
+                  label="Dynamic redirect"
+                  sub="Change destination without reprinting"
+                  checked={current.dynamic}
+                  onChange={v => patch('dynamic', v)}
+                />
+                <Switch
+                  label="Pause fallback"
+                  sub="Customers see a friendly page when paused"
+                  checked={current.pause_fallback}
+                  onChange={v => patch('pause_fallback', v)}
+                />
+                <Switch
+                  label="A/B testing"
+                  sub="Split traffic between funnel variants"
+                  checked={current.ab_testing}
+                  onChange={v => patch('ab_testing', v)}
+                />
+              </Card>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
   );
 }

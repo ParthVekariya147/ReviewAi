@@ -6,13 +6,14 @@ import { trackEvent } from '@/lib/analytics/events';
 /* ── Types ─────────────────────────────────────────────── */
 
 export type BusinessData = {
-  name: string;
-  tagline: string;
-  googleLink: string;
-  brandColor: string;
-  logoInitials: string;
+  name:               string;
+  tagline:            string;
+  googleLink:         string;                                                 // kept for backward compat
+  reviewPlatforms:    { id: string; url: string; enabled: boolean }[];       // multi-platform support
+  brandColor:         string;
+  logoInitials:       string;
   minRatingForGoogle: number;
-  language: string;
+  language:           string;
 };
 
 type Step = 'landing' | 'rating' | 'generating' | 'review' | 'private' | 'success';
@@ -21,56 +22,83 @@ type Step = 'landing' | 'rating' | 'generating' | 'review' | 'private' | 'succes
 
 const T = {
   en: {
-    welcome: 'How was your experience?',
-    welcomeSub: 'Your feedback helps us grow. It only takes 30 seconds.',
-    start: 'Share your feedback',
-    rateUs: 'Tap a star to rate your visit',
-    generating: 'Crafting your review',
-    generatingSub: 'Our AI is writing a personalised draft for you…',
-    reviewReady: 'Here\'s your review draft',
-    reviewSub: 'Review, edit, then copy it to Google. Takes 10 seconds!',
-    refresh: 'Try another',
-    edit: 'Edit',
-    copyGo: 'Copy & open Google',
-    copied: 'Copied! Opening Google…',
-    privateTitle: 'We\'re sorry to hear that',
-    privateSub: 'Your feedback is private and helps us improve. What can we do better?',
+    welcome:         'How was your experience?',
+    welcomeSub:      'Your feedback helps us grow. It only takes 30 seconds.',
+    start:           'Share your feedback',
+    rateUs:          'Tap a star to rate your visit',
+    generating:      'Crafting your review',
+    generatingSub:   'Our AI is writing a personalised draft for you…',
+    reviewReady:     'Here\'s your review draft',
+    reviewSub:       'Review, edit, then post it — takes 10 seconds!',
+    refresh:         'Try another',
+    edit:            'Edit',
+    copyGo:          'Copy & post review',
+    copyGoSingle:    'Copy & open',          // appended with platform name at render time
+    copied:          'Copied!',
+    choosePlatform:  'Now open your preferred platform and paste it:',
+    privateTitle:    'We\'re sorry to hear that',
+    privateSub:      'Your feedback is private and helps us improve. What can we do better?',
     privatePlaceholder: 'Tell us what happened…',
-    submitFeedback: 'Send private feedback',
-    submitting: 'Sending…',
-    successTitle: 'Thank you!',
-    successSub: 'Your feedback makes a real difference for our team.',
-    successGoogle: 'Your review has been copied. Paste it on Google Reviews!',
-    starLabels: 'Terrible,Poor,Okay,Good,Amazing!',
+    submitFeedback:  'Send private feedback',
+    submitting:      'Sending…',
+    successTitle:    'Thank you!',
+    successSub:      'Your feedback makes a real difference for our team.',
+    successGoogle:   'Review copied! Open your review platform and paste it there.',
+    starLabels:      'Terrible,Poor,Okay,Good,Amazing!',
   },
   es: {
-    welcome: '¿Cómo fue tu experiencia?',
-    welcomeSub: 'Tu opinión nos ayuda a mejorar. Solo toma 30 segundos.',
-    start: 'Comparte tu opinión',
-    rateUs: 'Toca una estrella para calificar',
-    generating: 'Creando tu reseña',
-    generatingSub: 'Nuestra IA escribe un borrador personalizado para ti…',
-    reviewReady: 'Aquí está tu borrador',
-    reviewSub: '¡Revísalo, edítalo y cópialo en Google!',
-    refresh: 'Probar otra',
-    edit: 'Editar',
-    copyGo: 'Copiar y abrir Google',
-    copied: '¡Copiado! Abriendo Google…',
-    privateTitle: 'Lamentamos escuchar eso',
-    privateSub: 'Tu comentario es privado y nos ayuda a mejorar.',
+    welcome:         '¿Cómo fue tu experiencia?',
+    welcomeSub:      'Tu opinión nos ayuda a mejorar. Solo toma 30 segundos.',
+    start:           'Comparte tu opinión',
+    rateUs:          'Toca una estrella para calificar',
+    generating:      'Creando tu reseña',
+    generatingSub:   'Nuestra IA escribe un borrador personalizado para ti…',
+    reviewReady:     'Aquí está tu borrador',
+    reviewSub:       '¡Revísalo, edítalo y publícalo — tarda 10 segundos!',
+    refresh:         'Probar otra',
+    edit:            'Editar',
+    copyGo:          'Copiar y publicar reseña',
+    copyGoSingle:    'Copiar y abrir',
+    copied:          '¡Copiado!',
+    choosePlatform:  'Abre tu plataforma y pega la reseña:',
+    privateTitle:    'Lamentamos escuchar eso',
+    privateSub:      'Tu comentario es privado y nos ayuda a mejorar.',
     privatePlaceholder: 'Cuéntanos qué pasó…',
-    submitFeedback: 'Enviar comentarios',
-    submitting: 'Enviando…',
-    successTitle: '¡Gracias!',
-    successSub: 'Tu opinión marca una diferencia real para nuestro equipo.',
-    successGoogle: '¡Tu reseña fue copiada. Pégala en Google Reviews!',
-    starLabels: 'Pésimo,Malo,Regular,Bueno,¡Genial!',
+    submitFeedback:  'Enviar comentarios',
+    submitting:      'Enviando…',
+    successTitle:    '¡Gracias!',
+    successSub:      'Tu opinión marca una diferencia real para nuestro equipo.',
+    successGoogle:   '¡Reseña copiada! Abre tu plataforma y pégala ahí.',
+    starLabels:      'Pésimo,Malo,Regular,Bueno,¡Genial!',
   },
 };
 
 function t(lang: string, key: keyof typeof T['en']): string {
   const locale = (T as Record<string, typeof T['en']>)[lang] ?? T.en;
   return locale[key] ?? T.en[key];
+}
+
+/* ── Platform helpers ────────────────────────────────── */
+
+const PLATFORM_META: Record<string, { name: string; emoji: string; color: string }> = {
+  google:        { name: 'Google Reviews',        emoji: '🔍', color: '#4285F4' },
+  yelp:          { name: 'Yelp',                  emoji: '⭐', color: '#FF1A1A' },
+  tripadvisor:   { name: 'TripAdvisor',           emoji: '🦉', color: '#00AF87' },
+  trustpilot:    { name: 'Trustpilot',            emoji: '🌟', color: '#00B67A' },
+  facebook:      { name: 'Facebook Reviews',      emoji: '👍', color: '#1877F2' },
+  yandex:        { name: 'Yandex Maps',           emoji: '🗺️', color: '#FC3F1D' },
+  '2gis':        { name: '2GIS',                  emoji: '📌', color: '#31A44A' },
+  flamp:         { name: 'Flamp',                 emoji: '💬', color: '#FF6600' },
+  booking:       { name: 'Booking.com',           emoji: '🏨', color: '#003580' },
+  zomato:        { name: 'Zomato',                emoji: '🍽️', color: '#E23744' },
+  talabat:       { name: 'Talabat',               emoji: '🚚', color: '#FF6600' },
+  productreview: { name: 'ProductReview.com.au',  emoji: '🛒', color: '#E87722' },
+  truelocal:     { name: 'True Local',            emoji: '📍', color: '#007FC8' },
+  checkatrade:   { name: 'Checkatrade',           emoji: '🔧', color: '#005DAA' },
+};
+
+function platformMeta(id: string) {
+  return PLATFORM_META[id] ?? { name: id, emoji: '⭐', color: '#6E5BFF' };
 }
 
 /* ── Mock review drafts (replaced by Gemini in Module 6) ─ */
@@ -122,8 +150,15 @@ export default function FunnelFlow({
   const [submitted, setSubmitted]         = useState(false);
   const [visible, setVisible]             = useState(true);
 
-  const lang = business?.language ?? 'en';
+  const lang  = business?.language  ?? 'en';
   const brand = business?.brandColor ?? '#6E5BFF';
+
+  // Resolve active platforms; fall back to googleLink for old records
+  const activePlatforms = (business?.reviewPlatforms ?? []).filter(p => p.enabled && p.url.trim());
+  const resolvedPlatforms = activePlatforms.length > 0
+    ? activePlatforms
+    : (business?.googleLink ? [{ id: 'google', url: business.googleLink, enabled: true }] : []);
+  const isMultiPlatform = resolvedPlatforms.length > 1;
 
   /* transition helper */
   const goTo = useCallback((next: Step) => {
@@ -163,16 +198,25 @@ export default function FunnelFlow({
     track('refresh');
   }
 
-  /* copy + redirect */
-  async function handleCopyGo() {
+  /* copy text, then either auto-redirect (single platform) or show picker (multi) */
+  async function handleCopy() {
     try { await navigator.clipboard.writeText(reviewText); } catch {}
     setCopied(true);
     track('copy');
-    setTimeout(() => {
-      if (business?.googleLink) window.open(business.googleLink, '_blank');
-      track('redirect');
-      goTo('success');
-    }, 900);
+    if (!isMultiPlatform) {
+      setTimeout(() => {
+        const p = resolvedPlatforms[0];
+        if (p?.url) window.open(p.url, '_blank');
+        track('redirect', { platform: p?.id ?? 'none' });
+        goTo('success');
+      }, 900);
+    }
+  }
+
+  function openPlatform(url: string, id: string) {
+    if (url) window.open(url, '_blank');
+    track('redirect', { platform: id });
+    goTo('success');
   }
 
   /* private feedback submit */
@@ -306,19 +350,13 @@ export default function FunnelFlow({
               </div>
 
               <div className="rv-review-actions">
-                <button
-                  className="rv-btn rv-btn-ghost"
-                  onClick={handleRefresh}
-                >
+                <button className="rv-btn rv-btn-ghost" onClick={handleRefresh}>
                   <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
                     <path d="M13 7.5A5.5 5.5 0 112.5 4.5M2.5 1.5v3h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                   {t(lang, 'refresh')}
                 </button>
-                <button
-                  className="rv-btn rv-btn-ghost"
-                  onClick={() => setEditing(e => !e)}
-                >
+                <button className="rv-btn rv-btn-ghost" onClick={() => setEditing(e => !e)}>
                   <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
                     <path d="M10 2l3 3-8 8H2v-3l8-8z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
                   </svg>
@@ -326,28 +364,77 @@ export default function FunnelFlow({
                 </button>
               </div>
 
-              <button
-                className={`rv-btn ${copied ? 'rv-btn-success' : 'rv-btn-primary'}`}
-                onClick={handleCopyGo}
-                disabled={copied}
-              >
-                {copied ? (
-                  <>
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                      <path d="M3 8l4 4 6-7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              {/* Single platform: one-click copy + redirect */}
+              {!isMultiPlatform && (
+                <button
+                  className={`rv-btn ${copied ? 'rv-btn-success' : 'rv-btn-primary'}`}
+                  onClick={handleCopy}
+                  disabled={copied}
+                >
+                  {copied ? (
+                    <>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M3 8l4 4 6-7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      {t(lang, 'copied')}
+                    </>
+                  ) : (
+                    <>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <rect x="5" y="5" width="9" height="9" rx="2" stroke="white" strokeWidth="1.5"/>
+                        <path d="M3 11V3h8" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                      </svg>
+                      {t(lang, 'copyGoSingle')} {platformMeta(resolvedPlatforms[0]?.id ?? 'google').name}
+                    </>
+                  )}
+                </button>
+              )}
+
+              {/* Multi platform: copy first, then show platform picker */}
+              {isMultiPlatform && !copied && (
+                <button className="rv-btn rv-btn-primary" onClick={handleCopy}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <rect x="5" y="5" width="9" height="9" rx="2" stroke="white" strokeWidth="1.5"/>
+                    <path d="M3 11V3h8" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                  {t(lang, 'copyGo')}
+                </button>
+              )}
+
+              {isMultiPlatform && copied && (
+                <div style={{ marginTop: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontSize: 13, color: '#16a34a', fontWeight: 600 }}>
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                      <path d="M3 7.5l3.5 3.5 5.5-6" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                     {t(lang, 'copied')}
-                  </>
-                ) : (
-                  <>
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                      <rect x="5" y="5" width="9" height="9" rx="2" stroke="white" strokeWidth="1.5"/>
-                      <path d="M3 11V3h8" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-                    </svg>
-                    {t(lang, 'copyGo')}
-                  </>
-                )}
-              </button>
+                  </div>
+                  <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 10, textAlign: 'center' }}>
+                    {t(lang, 'choosePlatform')}
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {resolvedPlatforms.map(p => {
+                      const meta = platformMeta(p.id);
+                      return (
+                        <button
+                          key={p.id}
+                          onClick={() => openPlatform(p.url, p.id)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                            padding: '11px 16px', borderRadius: 10, border: 'none',
+                            background: meta.color, color: '#fff',
+                            fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                            boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+                          }}
+                        >
+                          <span style={{ fontSize: 18, lineHeight: 1 }}>{meta.emoji}</span>
+                          {meta.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </>
           )}
 

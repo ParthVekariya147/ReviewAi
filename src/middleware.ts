@@ -7,7 +7,7 @@ const supabaseConfigured =
   supabaseUrl.startsWith("http://") || supabaseUrl.startsWith("https://");
 
 export async function middleware(request: NextRequest) {
-  const supabaseResponse = NextResponse.next({ request });
+  const supabaseResponse = NextResponse.next();
 
   if (!supabaseConfigured) {
     return supabaseResponse;
@@ -48,7 +48,7 @@ export async function middleware(request: NextRequest) {
     url.searchParams.set("error", "session_expired");
     return NextResponse.redirect(url);
   }
-  if (!user && pathname.startsWith(DASHBOARD)) {
+  if (!user && (pathname.startsWith(DASHBOARD) || pathname.startsWith("/app/onboarding"))) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);

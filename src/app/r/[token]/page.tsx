@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
 import FunnelFlow, { type BusinessData } from './FunnelFlow';
+import { type ReviewPlatformEntry } from '@/lib/platforms';
 
 export const metadata: Metadata = {
   title: 'Share your experience',
@@ -11,6 +12,7 @@ const DEMO_BUSINESS: BusinessData = {
   name:               'Olive & Pine',
   tagline:            "NW Portland's favourite Italian kitchen",
   googleLink:         'https://g.page/r/demo-review-link',
+  reviewPlatforms:    [{ id: 'google', url: 'https://g.page/r/demo-review-link', enabled: true }],
   brandColor:         '#6E5BFF',
   logoInitials:       'OP',
   minRatingForGoogle: 4,
@@ -18,7 +20,6 @@ const DEMO_BUSINESS: BusinessData = {
 };
 
 async function lookupToken(token: string): Promise<BusinessData | null> {
-  /* Built-in demo token — always works; useful for testing + sales demos */
   if (token === 'demo' || token.startsWith('demo-')) return DEMO_BUSINESS;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
@@ -32,7 +33,7 @@ async function lookupToken(token: string): Promise<BusinessData | null> {
         id, token, status,
         businesses (
           name, tagline, google_link, brand_color,
-          logo_initials, min_rating_for_google, language
+          logo_initials, min_rating_for_google, language, review_platforms
         )
       `)
       .eq('token', token)
@@ -45,12 +46,20 @@ async function lookupToken(token: string): Promise<BusinessData | null> {
       name: string; tagline: string | null; google_link: string | null;
       brand_color: string; logo_initials: string;
       min_rating_for_google: number; language: string;
+      review_platforms: ReviewPlatformEntry[] | null;
     };
+
+    // Use saved platforms; fall back to google_link so old records still work
+    const reviewPlatforms: ReviewPlatformEntry[] =
+      biz.review_platforms?.length
+        ? biz.review_platforms
+        : (biz.google_link ? [{ id: 'google', url: biz.google_link, enabled: true }] : []);
 
     return {
       name:               biz.name,
       tagline:            biz.tagline     ?? '',
       googleLink:         biz.google_link ?? '',
+      reviewPlatforms,
       brandColor:         biz.brand_color,
       logoInitials:       biz.logo_initials,
       minRatingForGoogle: biz.min_rating_for_google,

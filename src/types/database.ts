@@ -16,9 +16,13 @@ export interface Business {
   min_rating_for_google: number;
   language:              string;
   plan:                  BusinessPlan;
+  review_platforms:      { id: string; url: string; enabled: boolean }[];
+  onboarding_complete:   boolean;
   created_at:            string;
   updated_at:            string;
 }
+
+export type ReviewPlatformEntry = Business['review_platforms'][number];
 
 export interface QRCode {
   id:             string;

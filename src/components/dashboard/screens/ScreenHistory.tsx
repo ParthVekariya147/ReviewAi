@@ -1,7 +1,66 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Icon, Card, CardHeader, Btn, Badge, Stat, Progress, Avatar, Input, Segmented, Select, fmt } from '../ui';
+import { useState } from 'react';
+import useSWR from 'swr';
+import { Icon, Card, CardHeader, Btn, Badge, Stat, Progress, Input, Segmented, Select, fmt } from '../ui';
+
+const fetcher = (url: string) =>
+  fetch(url).then(r => { if (!r.ok) throw new Error('fetch failed'); return r.json(); });
+
+// ── helpers ──────────────────────────────────────────────────
+
+function timeAgo(ts: string): string {
+  const mins = Math.floor((Date.now() - new Date(ts).getTime()) / 60_000);
+  if (mins < 1)  return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)  return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function statusTone(s: string): 'success' | 'danger' | 'primary' | 'violet' | 'neutral' {
+  switch (s) {
+    case 'submitted': return 'success';
+    case 'abandoned': return 'danger';
+    case 'copied':    return 'primary';
+    case 'redirected':return 'violet';
+    default:          return 'neutral';
+  }
+}
+
+function countryFlag(iso: string): string {
+  if (!iso || iso.length !== 2) return '🌐';
+  return iso.toUpperCase().split('').map(
+    c => String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65),
+  ).join('');
+}
+
+function countryName(iso: string): string {
+  try {
+    return new Intl.DisplayNames(['en'], { type: 'region' }).of(iso.toUpperCase()) ?? iso;
+  } catch { return iso; }
+}
+
+// ── types ─────────────────────────────────────────────────────
+
+interface Review {
+  id:            string;
+  qr_id:         string;
+  campaign_name: string;
+  rating:        number;
+  ai_text:       string;
+  refreshes:     number;
+  copies:        number;
+  status:        string;
+  created_at:    string;
+}
+
+interface SummaryData {
+  totals:     Record<string, number>;
+  by_country: { country: string; count: number }[];
+}
+
+// ── sub-components ───────────────────────────────────────────
 
 function PageHeader({ title, sub, actions }: { title: string; sub?: string; actions?: React.ReactNode }) {
   return (
@@ -15,161 +74,212 @@ function PageHeader({ title, sub, actions }: { title: string; sub?: string; acti
   );
 }
 
-export default function ScreenHistory() {
-  const [filter, setFilter] = useState('all');
-  const [search, setSearch] = useState('');
-
-  const allReviews = useMemo(() => {
-    const tones = ['warm','professional','casual','enthusiastic'];
-    const customers = ['Customer #4821','Customer #4820','Customer #4815','Customer #4807','Customer #4801','Customer #4798','Customer #4790','Customer #4783','Customer #4775','Customer #4768','Customer #4762','Customer #4756'];
-    const sources = ['Front Counter','Table Tents','Receipts','Loyalty Email'];
-    const devices = ['iPhone 15','Android','iPad','iPhone 14','Android'];
-    const countries = ['🇺🇸 US','🇨🇦 CA','🇲🇽 MX','🇬🇧 UK','🇫🇷 FR'];
-    const langs = ['English','Spanish','French','English','English'];
-    const samples = [
-      'Wood-fired pizza was incredible — staff made our anniversary feel special. Back soon!',
-      'Cozy atmosphere, fast service and the vegan menu was a delightful surprise.',
-      'Best Italian in NW Portland — patio at sunset is unmatched.',
-      'Service was warm, the espresso was perfect and the tiramisu blew us away.',
-      'Family-friendly, the kids loved the bread service. Owner stopped by our table.',
-      'Tucked-away neighborhood gem — definitely worth the trip across town.',
-      'The seasonal menu rotates often and the chef knows his stuff.',
-      'We were celebrating a promotion and the team made it feel like a real occasion.',
-      'Cocktails are creative and the food never misses. New favorite spot.',
-      'Quiet vibe, great lighting, and the gnocchi is the best in the city.',
-      'Walked in without a reservation — they squeezed us in and treated us like regulars.',
-      'Patio heaters made winter dinner cozy. Will recommend to anyone.',
-    ];
-    return Array.from({ length: 24 }, (_, i) => ({
-      id: `r-${1000 + i}`,
-      customer: customers[i % customers.length],
-      text: samples[i % samples.length],
-      stars: i % 7 === 3 ? 4 : 5,
-      tone: tones[i % tones.length],
-      lang: langs[i % langs.length],
-      source: sources[i % sources.length],
-      device: devices[i % devices.length],
-      country: countries[i % countries.length],
-      time: `${(i * 17) % 23}h ago`,
-      status: i % 11 === 0 ? 'submitted' : i % 9 === 0 ? 'abandoned' : i % 6 === 0 ? 'copied' : 'redirected',
-      refreshes: (i * 7) % 4,
-      copies: (i * 3) % 3,
-    }));
-  }, []);
-
-  const filtered = allReviews.filter(r =>
-    (filter === 'all' || r.status === filter) &&
-    (!search || r.text.toLowerCase().includes(search.toLowerCase()) || r.customer.toLowerCase().includes(search.toLowerCase()))
+function Stars({ n }: { n: number }) {
+  return (
+    <span style={{ color: 'var(--lp-warning)', letterSpacing: -1, fontSize: 13 }}>
+      {'★'.repeat(n)}{'☆'.repeat(5 - n)}
+    </span>
   );
+}
 
-  const statusTone = (s: string) =>
-    s === 'submitted' ? 'success' : s === 'abandoned' ? 'danger' : s === 'copied' ? 'primary' : 'violet';
+// ── main component ───────────────────────────────────────────
+
+export default function ScreenHistory() {
+  const [page,   setPage]   = useState(1);
+  const [status, setStatus] = useState('all');
+  const [days,   setDays]   = useState('30');
+  const [search, setSearch] = useState('');
+  const [draft,  setDraft]  = useState('');
+
+  const perPage = 20;
+
+  // Build query string — reset page when filters change
+  const reviewsKey = `/api/reviews?page=${page}&per_page=${perPage}&status=${status}&days=${days}&search=${encodeURIComponent(search)}`;
+  const summaryKey = `/api/analytics/summary?days=${days === 'all' ? 90 : parseInt(days)}`;
+
+  const { data: reviewsData, isLoading } = useSWR<{ reviews: Review[]; total: number; page: number }>(reviewsKey, fetcher);
+  const { data: summaryData }            = useSWR<SummaryData>(summaryKey, fetcher);
+
+  const t           = summaryData?.totals ?? {};
+  const generates   = t['generate'] ?? 0;
+  const completes   = t['complete'] ?? 0;
+  const refreshes   = t['refresh']  ?? 0;
+  const copies      = t['copy']     ?? 0;
+  const scans       = t['scan']     ?? 0;
+  const completion  = generates > 0 ? Math.round((completes / generates) * 1000) / 10 : 0;
+  const conversion  = scans > 0     ? Math.round((completes / scans)     * 1000) / 10 : 0;
+
+  const reviews  = reviewsData?.reviews ?? [];
+  const total    = reviewsData?.total   ?? 0;
+  const totalPages = Math.ceil(total / perPage);
+  const from     = (page - 1) * perPage + 1;
+  const to       = Math.min(page * perPage, total);
+
+  function applySearch() {
+    setSearch(draft);
+    setPage(1);
+  }
+
+  function changeStatus(v: string) { setStatus(v); setPage(1); }
+  function changeDays(v: string)   { setDays(v);   setPage(1); }
 
   return (
     <div className="lp-page">
       <PageHeader
         title="Review history"
-        sub="Every AI-assisted customer review your funnel has produced"
+        sub="Every AI-assisted review your funnel has produced"
         actions={
           <>
-            <Btn icon="filter">Filter</Btn>
             <Btn icon="download">Export CSV</Btn>
           </>
         }
       />
 
+      {/* KPI row 1 */}
       <div className="lp-grid lp-grid-4">
-        <Stat label="Reviews generated"      icon="sparkles" value={2384} delta={11.2} tone="primary"/>
-        <Stat label="Submitted to Google"     icon="external" value={1845} delta={8.4}  tone="success"/>
-        <Stat label="Funnel completion"       icon="check"    value={77.4} suffix="%" decimals={1} delta={3.1} tone="violet"/>
-        <Stat label="Conversion (scan→Google)" icon="trendUp" value={49.9} suffix="%" decimals={1} delta={5.4} tone="cyan"/>
+        <Stat label="Reviews generated"       icon="sparkles" value={generates} tone="primary" />
+        <Stat label="Submitted to Google"     icon="external" value={completes} tone="success" />
+        <Stat label="Funnel completion"       icon="check"    value={completion} suffix="%" decimals={1} tone="violet" />
+        <Stat label="Conversion (scan→Google)" icon="trendUp" value={conversion} suffix="%" decimals={1} tone="cyan" />
       </div>
 
+      {/* KPI row 2 + country */}
       <div className="lp-grid lp-grid-3">
-        <Stat label="Refresh requests" icon="refresh" value={487} delta={-2.1} tone="warning"/>
-        <Stat label="Copy clicks"      icon="copy"    value={892} delta={4.4}  tone="primary"/>
+        <Stat label="Refresh requests" icon="refresh" value={refreshes} tone="warning" />
+        <Stat label="Copy clicks"      icon="copy"    value={copies}    tone="primary" />
+
         <Card>
-          <CardHeader title="Reviews by country" subtitle="Top 5 locations"/>
+          <CardHeader title="Reviews by country" subtitle="Top locations" />
           <div className="lp-country-list" style={{ gap: 8 }}>
-            {[
-              { flag: '🇺🇸', name: 'US',    n: 1742, share: 0.73 },
-              { flag: '🇨🇦', name: 'CA',    n: 308,  share: 0.13 },
-              { flag: '🇲🇽', name: 'MX',    n: 142,  share: 0.06 },
-              { flag: '🇬🇧', name: 'UK',    n: 95,   share: 0.04 },
-              { flag: '🌐',  name: 'Other', n: 97,   share: 0.04 },
-            ].map(c => (
-              <div className="lp-country-row" key={c.name}>
-                <span className="lp-country-flag" style={{ fontSize: 14 }}>{c.flag}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="lp-flex lp-flex-between" style={{ fontSize: 11.5 }}>
-                    <span>{c.name}</span>
-                    <span><b>{fmt(c.n)}</b></span>
+            {(summaryData?.by_country ?? []).length === 0 ? (
+              <div style={{ padding: '12px 0', color: 'var(--lp-fg-muted)', fontSize: 13 }}>No data yet</div>
+            ) : (summaryData?.by_country ?? []).map(c => {
+              const topCount = summaryData!.by_country[0].count || 1;
+              return (
+                <div className="lp-country-row" key={c.country}>
+                  <span className="lp-country-flag" style={{ fontSize: 14 }}>{countryFlag(c.country)}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="lp-flex lp-flex-between" style={{ fontSize: 11.5 }}>
+                      <span>{countryName(c.country)}</span>
+                      <span><b>{fmt(c.count)}</b></span>
+                    </div>
+                    <Progress value={(c.count / topCount) * 100} tone="primary" height={3} />
                   </div>
-                  <Progress value={c.share * 100} tone="primary" height={3}/>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
       </div>
 
+      {/* Review table */}
       <Card padded={false}>
         <div className="lp-table-toolbar">
-          <Input icon="search" placeholder="Search reviews, customers…" value={search} onChange={(e) => setSearch(e.target.value)}/>
-          <Segmented value={filter} onChange={setFilter} options={[
-            {value:'all',label:'All'},{value:'redirected',label:'Redirected'},
-            {value:'copied',label:'Copied'},{value:'submitted',label:'Submitted'},{value:'abandoned',label:'Abandoned'},
-          ]}/>
-          <Select value="30d" onChange={() => {}} options={[
-            {value:'7d',label:'Last 7 days'},{value:'30d',label:'Last 30 days'},{value:'all',label:'All time'},
-          ]}/>
+          <div className="lp-flex" style={{ gap: 6, flex: 1 }}>
+            <Input
+              icon="search"
+              placeholder="Search review text…"
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && applySearch()}
+            />
+            <Btn variant="ghost" size="sm" onClick={applySearch}>Search</Btn>
+          </div>
+          <Segmented
+            value={status}
+            onChange={changeStatus}
+            options={[
+              { value: 'all',       label: 'All'       },
+              { value: 'redirected',label: 'Redirected'},
+              { value: 'copied',    label: 'Copied'    },
+              { value: 'submitted', label: 'Submitted' },
+              { value: 'abandoned', label: 'Abandoned' },
+            ]}
+          />
+          <Select
+            value={days}
+            onChange={changeDays}
+            options={[
+              { value: '7',  label: 'Last 7 days'  },
+              { value: '30', label: 'Last 30 days' },
+              { value: '90', label: 'Last 90 days' },
+              { value: 'all',label: 'All time'     },
+            ]}
+          />
         </div>
 
-        <table className="lp-table lp-table-history">
-          <thead>
-            <tr>
-              <th>Customer</th><th>Review</th><th>★</th>
-              <th>Tone · Lang</th><th>Source</th>
-              <th>Device · Country</th><th>Status</th><th>Time</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.slice(0, 14).map(r => (
-              <tr key={r.id}>
-                <td>
-                  <div className="lp-tcell-main">
-                    <Avatar name={r.customer} size={28}/>
-                    <div>
-                      <div className="lp-tcell-name">{r.customer}</div>
-                      <div className="lp-tcell-sub">
-                        {r.refreshes > 0 && <span><Icon name="refresh" size={10}/> {r.refreshes}×</span>}
-                        {r.copies > 0 && <span style={{ marginLeft: 8 }}><Icon name="copy" size={10}/> {r.copies}×</span>}
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="lp-tcell-text">{r.text}</td>
-                <td><span style={{ color: 'var(--lp-warning)' }}>★</span> {r.stars}</td>
-                <td>
-                  <Badge tone="neutral">{r.tone}</Badge>{' '}
-                  <span className="lp-muted">{r.lang}</span>
-                </td>
-                <td><span className="lp-muted">{r.source}</span></td>
-                <td>
-                  <div>{r.device}</div>
-                  <div className="lp-muted" style={{ fontSize: 11 }}>{r.country}</div>
-                </td>
-                <td><Badge tone={statusTone(r.status) as 'success' | 'danger' | 'primary' | 'violet'} dot>{r.status}</Badge></td>
-                <td className="lp-muted">{r.time}</td>
+        {isLoading ? (
+          <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--lp-fg-muted)' }}>
+            Loading reviews…
+          </div>
+        ) : reviews.length === 0 ? (
+          <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--lp-fg-muted)' }}>
+            {search || status !== 'all' ? 'No reviews match this filter.' : 'No reviews yet — share a QR code to start collecting data.'}
+          </div>
+        ) : (
+          <table className="lp-table lp-table-history">
+            <thead>
+              <tr>
+                <th>Campaign</th>
+                <th>Review</th>
+                <th>★</th>
+                <th>Engagement</th>
+                <th>Status</th>
+                <th>Time</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {reviews.map(r => (
+                <tr key={r.id}>
+                  <td>
+                    <div className="lp-tcell-name">{r.campaign_name}</div>
+                  </td>
+                  <td className="lp-tcell-text" style={{ maxWidth: 340 }}>
+                    <span title={r.ai_text}>
+                      {r.ai_text.length > 100 ? r.ai_text.slice(0, 100) + '…' : r.ai_text}
+                    </span>
+                  </td>
+                  <td><Stars n={r.rating} /></td>
+                  <td>
+                    <div className="lp-flex" style={{ gap: 10, fontSize: 12 }}>
+                      {r.refreshes > 0 && (
+                        <span className="lp-muted"><Icon name="refresh" size={10} /> {r.refreshes}×</span>
+                      )}
+                      {r.copies > 0 && (
+                        <span className="lp-muted"><Icon name="copy" size={10} /> {r.copies}×</span>
+                      )}
+                      {r.refreshes === 0 && r.copies === 0 && <span className="lp-muted">—</span>}
+                    </div>
+                  </td>
+                  <td>
+                    <Badge tone={statusTone(r.status)} dot>{r.status}</Badge>
+                  </td>
+                  <td className="lp-muted" style={{ whiteSpace: 'nowrap' }}>
+                    {timeAgo(r.created_at)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
         <div className="lp-table-foot">
-          <span className="lp-muted">Showing 1–{Math.min(14, filtered.length)} of {filtered.length}</span>
+          <span className="lp-muted">
+            {total === 0 ? 'No results' : `Showing ${from}–${to} of ${fmt(total)}`}
+          </span>
           <div className="lp-flex" style={{ gap: 6 }}>
-            <Btn variant="ghost" size="sm" icon="chevron" style={{ transform: 'scaleX(-1)' }}/>
-            <Btn variant="ghost" size="sm" iconRight="chevron"/>
+            <Btn
+              variant="ghost" size="sm" icon="chevron"
+              style={{ transform: 'scaleX(-1)' }}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+            />
+            <span style={{ fontSize: 12, color: 'var(--lp-fg-muted)', padding: '0 4px', alignSelf: 'center' }}>
+              {page} / {totalPages || 1}
+            </span>
+            <Btn
+              variant="ghost" size="sm" iconRight="chevron"
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            />
           </div>
         </div>
       </Card>

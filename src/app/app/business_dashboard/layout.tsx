@@ -9,15 +9,24 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   if (!user) redirect('/login?next=/app/business_dashboard');
 
+  // Block dashboard access until onboarding is complete
+  const { data: biz } = await supabase
+    .from('businesses')
+    .select('id, onboarding_complete')
+    .eq('owner_id', user.id)
+    .maybeSingle();
+
+  if (!biz || !biz.onboarding_complete) redirect('/app/onboarding');
+
   const fullName: string = user.user_metadata?.full_name || '';
-  const email: string = user.email ?? '';
-  const ownerName = fullName || email.split('@')[0];
+  const email: string    = user.email ?? '';
+  const ownerName        = fullName || email.split('@')[0];
 
   return (
     <div className="lp-root lp-app">
-      <Sidebar ownerName={ownerName}/>
+      <Sidebar ownerName={ownerName} />
       <main className="lp-main">
-        <Topbar ownerName={ownerName}/>
+        <Topbar ownerName={ownerName} />
         {children}
       </main>
     </div>
