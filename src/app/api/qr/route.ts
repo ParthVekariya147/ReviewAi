@@ -1,25 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getCurrentBusinessId } from '@/lib/businesses/current';
 import { generateTokenWithPrefix } from '@/lib/qr/tokens';
 
 /* GET /api/qr — list all QR campaigns for the authenticated business owner */
 export async function GET() {
   const supabase = await createClient();
+  const db = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: business } = await supabase
-    .from('businesses')
-    .select('id')
-    .eq('owner_id', user.id)
-    .single();
+  const { businessId, error: businessError } = await getCurrentBusinessId(db as Awaited<ReturnType<typeof createClient>>, user.id);
 
-  if (!business) return NextResponse.json({ error: 'No business found' }, { status: 404 });
+  if (businessError) return NextResponse.json({ error: businessError.message, code: businessError.code }, { status: 500 });
+  if (!businessId) return NextResponse.json({ error: 'No business found' }, { status: 404 });
 
-  const { data: codes, error } = await supabase
+  const { data: codes, error } = await db
     .from('qr_codes')
     .select('*')
-    .eq('business_id', business.id)
+    .eq('business_id', businessId)
     .order('created_at', { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -29,6 +29,7 @@ export async function GET() {
 /* POST /api/qr — create a new QR campaign */
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
+  const db = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -38,20 +39,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'campaign_name is required' }, { status: 400 });
   }
 
-  const { data: business } = await supabase
-    .from('businesses')
-    .select('id')
-    .eq('owner_id', user.id)
-    .single();
+  const { businessId, error: businessError } = await getCurrentBusinessId(db as Awaited<ReturnType<typeof createClient>>, user.id);
 
-  if (!business) return NextResponse.json({ error: 'No business found' }, { status: 404 });
+  if (businessError) return NextResponse.json({ error: businessError.message, code: businessError.code }, { status: 500 });
+  if (!businessId) return NextResponse.json({ error: 'No business found' }, { status: 404 });
 
   const token = generateTokenWithPrefix(campaignName);
 
-  const { data: code, error } = await supabase
+  const { data: code, error } = await db
     .from('qr_codes')
     .insert({
-      business_id:    business.id,
+      business_id:    businessId,
       token,
       campaign_name:  campaignName,
       status:         body?.status         ?? 'draft',

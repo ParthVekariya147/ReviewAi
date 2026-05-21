@@ -459,9 +459,10 @@ export const Chart = ({ data, keys = ['y'], colors = ['primary'], height = 220, 
   const padL = 38, padR = 12, padT = 10, padB = 26;
   const innerW = w - padL - padR;
   const innerH = height - padT - padB;
+  const hasData = data.length > 0;
 
   const allVals = data.flatMap(d => keys.map(k => (d[k] as number) || 0));
-  const maxVal = Math.max(...allVals) * 1.15 || 1;
+  const maxVal = allVals.length > 0 ? Math.max(1, Math.max(...allVals) * 1.15) : 1;
   const range = maxVal;
 
   const xFor = (i: number) => padL + (innerW * i) / (data.length - 1 || 1);
@@ -471,6 +472,10 @@ export const Chart = ({ data, keys = ['y'], colors = ['primary'], height = 220, 
 
   const [hover, setHover] = useState<number | null>(null);
   const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!hasData) {
+      setHover(null);
+      return;
+    }
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left - padL;
     const idx = Math.round((x / innerW) * (data.length - 1));
@@ -517,6 +522,7 @@ export const Chart = ({ data, keys = ['y'], colors = ['primary'], height = 220, 
         })}
         {keys.map((k, i) => {
           const pts = data.map((d, j) => [xFor(j), yFor(((d[k] as number) || 0) * t)]);
+          if (pts.length === 0) return null;
           if (kind === 'bar') {
             const barW = Math.max(4, (innerW / data.length) * 0.62 / keys.length);
             return (
@@ -540,7 +546,12 @@ export const Chart = ({ data, keys = ['y'], colors = ['primary'], height = 220, 
             </g>
           );
         })}
-        {hover != null && kind !== 'bar' && (
+        {!hasData && (
+          <text x={padL + innerW / 2} y={padT + innerH / 2} textAnchor="middle" className="lp-axis">
+            No data yet
+          </text>
+        )}
+        {hover != null && hasData && kind !== 'bar' && (
           <g>
             <line x1={xFor(hover)} x2={xFor(hover)} y1={padT} y2={padT + innerH}
                   stroke="var(--lp-fg-muted)" strokeWidth="1" strokeDasharray="3 3" opacity="0.4"/>
@@ -551,7 +562,7 @@ export const Chart = ({ data, keys = ['y'], colors = ['primary'], height = 220, 
           </g>
         )}
       </svg>
-      {hover != null && (
+      {hover != null && hasData && (
         <div className="lp-chart-tip" style={{ left: Math.min(w - 140, Math.max(0, xFor(hover) - 60)) }}>
           <div className="lp-chart-tip-label">{data[hover].x}</div>
           {keys.map((k, i) => (

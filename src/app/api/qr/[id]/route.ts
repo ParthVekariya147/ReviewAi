@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getCurrentBusinessId } from '@/lib/businesses/current';
 
 type Params = Promise<{ id: string }>;
 
 async function getAuthedQR(supabase: Awaited<ReturnType<typeof createClient>>, userId: string, qrId: string) {
+  const { businessId } = await getCurrentBusinessId(supabase, userId);
+  if (!businessId) return null;
+
   const { data } = await supabase
     .from('qr_codes')
-    .select('*, businesses!inner(owner_id)')
+    .select('*')
     .eq('id', qrId)
-    .eq('businesses.owner_id', userId)
+    .eq('business_id', businessId)
     .single();
   return data;
 }
@@ -17,10 +22,11 @@ async function getAuthedQR(supabase: Awaited<ReturnType<typeof createClient>>, u
 export async function GET(_req: NextRequest, { params }: { params: Params }) {
   const { id } = await params;
   const supabase = await createClient();
+  const db = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const code = await getAuthedQR(supabase, user.id, id);
+  const code = await getAuthedQR(db as Awaited<ReturnType<typeof createClient>>, user.id, id);
   if (!code) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json({ code });
 }
@@ -29,10 +35,11 @@ export async function GET(_req: NextRequest, { params }: { params: Params }) {
 export async function PATCH(req: NextRequest, { params }: { params: Params }) {
   const { id } = await params;
   const supabase = await createClient();
+  const db = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const existing = await getAuthedQR(supabase, user.id, id);
+  const existing = await getAuthedQR(db as Awaited<ReturnType<typeof createClient>>, user.id, id);
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
@@ -42,7 +49,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Params }) {
     if (key in body) updates[key] = body[key];
   }
 
-  const { data: code, error } = await supabase
+  const { data: code, error } = await db
     .from('qr_codes')
     .update(updates)
     .eq('id', id)
@@ -57,13 +64,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Params }) {
 export async function DELETE(_req: NextRequest, { params }: { params: Params }) {
   const { id } = await params;
   const supabase = await createClient();
+  const db = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const existing = await getAuthedQR(supabase, user.id, id);
+  const existing = await getAuthedQR(db as Awaited<ReturnType<typeof createClient>>, user.id, id);
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const { error } = await supabase
+  const { error } = await db
     .from('qr_codes')
     .update({ status: 'archived' })
     .eq('id', id);

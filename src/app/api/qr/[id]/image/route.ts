@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getCurrentBusinessId } from '@/lib/businesses/current';
 import { generateQRPng, generateQRSvg } from '@/lib/qr/generate';
 import { rateLimit, getClientIp } from '@/lib/security/rateLimit';
 
@@ -22,14 +24,21 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
 
   const { id } = await params;
   const supabase = await createClient();
+  const db = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: code } = await supabase
+  const { businessId, error: businessError } = await getCurrentBusinessId(db as Awaited<ReturnType<typeof createClient>>, user.id);
+  if (businessError) {
+    return NextResponse.json({ error: businessError.message, code: businessError.code }, { status: 500 });
+  }
+  if (!businessId) return NextResponse.json({ error: 'No business found' }, { status: 404 });
+
+  const { data: code } = await db
     .from('qr_codes')
-    .select('token, campaign_name, businesses!inner(owner_id)')
+    .select('token, campaign_name')
     .eq('id', id)
-    .eq('businesses.owner_id', user.id)
+    .eq('business_id', businessId)
     .single();
 
   if (!code) return NextResponse.json({ error: 'Not found' }, { status: 404 });

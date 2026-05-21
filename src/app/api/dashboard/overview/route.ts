@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getCurrentBusiness } from '@/lib/businesses/current';
 
 /* GET /api/dashboard/overview?days=30
    Single RPC call to Postgres — returns KPIs + deltas, daily chart
@@ -7,6 +9,7 @@ import { createClient } from '@/lib/supabase/server';
    Used by ScreenDashboard to replace all mock/generated data.    */
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
+  const db = createAdminClient();
 
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) {
@@ -18,17 +21,17 @@ export async function GET(req: NextRequest) {
     90,
   );
 
-  const { data: biz } = await supabase
-    .from('businesses')
-    .select('id, name, plan, brand_color, logo_initials, google_link')
-    .eq('owner_id', user.id)
-    .single();
+  const { business: biz, error: businessError } = await getCurrentBusiness(db as Awaited<ReturnType<typeof createClient>>, user.id);
+
+  if (businessError) {
+    return NextResponse.json({ error: businessError.message, code: businessError.code }, { status: 500 });
+  }
 
   if (!biz) {
     return NextResponse.json({ error: 'No business found' }, { status: 404 });
   }
 
-  const { data, error } = await supabase.rpc('dashboard_overview', {
+  const { data, error } = await db.rpc('dashboard_overview', {
     p_business_id: biz.id,
     p_days:        days,
   });

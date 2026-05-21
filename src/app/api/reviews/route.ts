@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getCurrentBusinessId } from '@/lib/businesses/current';
 
 /* GET /api/reviews?page=1&per_page=25&status=all&days=30&search=
    Paginated review history for the authenticated business owner.
    Joins generated_reviews with qr_codes to get campaign names.  */
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
+  const db = createAdminClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -18,20 +21,20 @@ export async function GET(req: NextRequest) {
   const days     = searchParams.get('days');
   const search   = searchParams.get('search')?.trim() ?? '';
 
-  const { data: biz } = await supabase
-    .from('businesses')
-    .select('id')
-    .eq('owner_id', user.id)
-    .single();
+  const { businessId, error: businessError } = await getCurrentBusinessId(db as Awaited<ReturnType<typeof createClient>>, user.id);
 
-  if (!biz) {
+  if (businessError) {
+    return NextResponse.json({ error: businessError.message, code: businessError.code }, { status: 500 });
+  }
+
+  if (!businessId) {
     return NextResponse.json({ error: 'No business found' }, { status: 404 });
   }
 
-  let query = supabase
+  let query = db
     .from('generated_reviews')
     .select('id, qr_id, rating, ai_text, refreshes, copies, status, created_at, qr_codes(campaign_name)', { count: 'exact' })
-    .eq('business_id', biz.id)
+    .eq('business_id', businessId)
     .order('created_at', { ascending: false });
 
   if (status !== 'all') {

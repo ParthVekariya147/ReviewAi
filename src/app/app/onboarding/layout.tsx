@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentBusiness } from '@/lib/businesses/current';
 import { redirect } from 'next/navigation';
 
 /* Full-screen layout — no sidebar, no topbar.
@@ -9,11 +10,7 @@ export default async function OnboardingLayout({ children }: { children: React.R
   if (!user) redirect('/login?next=/app/onboarding');
 
   // If already completed, send to dashboard
-  const { data: biz } = await supabase
-    .from('businesses')
-    .select('id, onboarding_complete')
-    .eq('owner_id', user.id)
-    .maybeSingle();
+  const { business: biz } = await getCurrentBusiness(supabase, user.id);
 
   if (biz?.onboarding_complete) redirect('/app/business_dashboard');
 

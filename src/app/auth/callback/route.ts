@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
+import { getCurrentBusiness } from '@/lib/businesses/current';
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -30,11 +31,7 @@ export async function GET(request: NextRequest) {
 
     if (!error && session?.user) {
       // New user with no business → send to onboarding
-      const { data: biz } = await supabase
-        .from('businesses')
-        .select('id, onboarding_complete')
-        .eq('owner_id', session.user.id)
-        .maybeSingle();
+      const { business: biz } = await getCurrentBusiness(supabase, session.user.id);
 
       const dest = biz?.onboarding_complete ? next : '/app/onboarding';
       return NextResponse.redirect(new URL(dest, origin));

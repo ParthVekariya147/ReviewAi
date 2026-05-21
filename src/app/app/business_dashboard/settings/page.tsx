@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentBusiness } from '@/lib/businesses/current';
 import { redirect } from 'next/navigation';
 import ScreenSettings from '@/components/dashboard/screens/ScreenSettings';
 
@@ -7,11 +8,18 @@ export default async function SettingsPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login?next=/app/business_dashboard/settings');
 
-  const { data: business } = await supabase
-    .from('businesses')
-    .select('*')
-    .eq('owner_id', user.id)
-    .single();
+  const { business: currentBusiness } = await getCurrentBusiness(supabase, user.id);
+  const business = currentBusiness ? {
+    id: String(currentBusiness.id),
+    name: String(currentBusiness.name ?? ''),
+    tagline: (currentBusiness.tagline as string | null) ?? null,
+    google_link: (currentBusiness.google_link as string | null) ?? null,
+    brand_color: String(currentBusiness.brand_color ?? '#6E5BFF'),
+    logo_initials: String(currentBusiness.logo_initials ?? 'BZ'),
+    min_rating_for_google: Number(currentBusiness.min_rating_for_google ?? 4),
+    language: String(currentBusiness.language ?? 'en'),
+    plan: String(currentBusiness.plan ?? 'free'),
+  } : null;
 
   return (
     <ScreenSettings

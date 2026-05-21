@@ -1,37 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import {
+  BUSINESS_COOKIE,
+  getCurrentBusiness,
+  normalizeBusiness,
+  normalizeLegacyBusiness,
+  shouldUseLegacyBusinessFallback,
+} from '@/lib/businesses/current';
 import {
   sanitizeString, sanitizeColor, sanitizeLang,
   sanitizeRating, sanitizeUrl, sanitizePlatforms,
 } from '@/lib/security/sanitize';
 
-/* GET /api/businesses */
-export async function GET() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+type ApiError = { code?: string | null; message?: string | null } | null;
 
-  const { data: business } = await supabase
-    .from('businesses')
-    .select('*')
-    .eq('owner_id', user.id)
-    .single();
+type BusinessPayload = {
+  owner_id: string;
+  name: string;
+  tagline: string | null;
+  google_link: string | null;
+  brand_color: string;
+  logo_initials: string;
+  min_rating_for_google: number;
+  language: string;
+  review_platforms: { id: string; url: string; enabled: boolean }[];
+  onboarding_complete: boolean;
+};
 
-  return NextResponse.json({ business: business ?? null });
+function isMissingUpsertRpcError(error: ApiError) {
+  if (!error?.message) return false;
+  return error.code === 'PGRST202'
+    || (error.message.includes('upsert_business') && error.message.toLowerCase().includes('function'));
 }
 
-/* POST /api/businesses — upsert (used by onboarding to progressively save) */
-export async function POST(req: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const body = await req.json().catch(() => null);
+function buildPayload(body: Record<string, unknown> | null, userId: string): BusinessPayload {
   const name = sanitizeString(body?.name, 120);
-  if (!name) return NextResponse.json({ error: 'name is required' }, { status: 400 });
 
-  const payload = {
-    owner_id:              user.id,
+  return {
+    owner_id:              userId,
     name,
     tagline:               sanitizeString(body?.tagline, 200) || null,
     google_link:           sanitizeUrl(body?.google_link) || null,
@@ -42,41 +49,181 @@ export async function POST(req: NextRequest) {
     review_platforms:      sanitizePlatforms(body?.review_platforms),
     onboarding_complete:   Boolean(body?.onboarding_complete),
   };
+}
 
-  // Check if a business already exists for this owner
-  const { data: existing } = await supabase
+async function upsertBusinessViaRpc(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  payload: BusinessPayload,
+) {
+  const { data, error } = await supabase.rpc('upsert_business', {
+    p_owner_id: payload.owner_id,
+    p_name: payload.name,
+    p_tagline: payload.tagline,
+    p_google_link: payload.google_link,
+    p_brand_color: payload.brand_color,
+    p_logo_initials: payload.logo_initials,
+    p_min_rating_for_google: payload.min_rating_for_google,
+    p_language: payload.language,
+    p_review_platforms: payload.review_platforms,
+    p_onboarding_complete: payload.onboarding_complete,
+  });
+
+  return {
+    business: normalizeBusiness((data ?? null) as Record<string, unknown> | null),
+    error,
+  };
+}
+
+async function upsertBusinessDirect(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  ownerId: string,
+  payload: BusinessPayload,
+) {
+  const { data: existing, error: existingError } = await supabase
     .from('businesses')
     .select('id')
-    .eq('owner_id', user.id)
+    .eq('owner_id', ownerId)
     .maybeSingle();
 
-  let business, error;
+  if (existingError) {
+    return { business: null, error: existingError };
+  }
+
+  let data;
+  let error;
+
   if (existing) {
     const { owner_id: _omit, ...updatePayload } = payload;
-    ({ data: business, error } = await supabase
+    ({ data, error } = await supabase
       .from('businesses')
       .update({ ...updatePayload, updated_at: new Date().toISOString() })
-      .eq('owner_id', user.id)
+      .eq('owner_id', ownerId)
       .select()
       .single());
   } else {
-    ({ data: business, error } = await supabase
+    ({ data, error } = await supabase
       .from('businesses')
       .insert(payload)
       .select()
       .single());
   }
 
-  if (error) {
-    console.error('[POST /api/businesses]', error);
-    return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
-  }
-  return NextResponse.json({ business }, { status: 201 });
+  return {
+    business: normalizeBusiness((data ?? null) as Record<string, unknown> | null),
+    error,
+  };
 }
 
-/* PATCH /api/businesses — partial update */
+async function upsertLegacyBusiness(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  legacyBusinessId: string | null,
+  payload: BusinessPayload,
+) {
+  const legacyPayload = {
+    name:                 payload.name,
+    category:             'General',
+    services:             [],
+    google_review_link:   payload.google_link,
+    logo_url:             null,
+    description:          payload.tagline,
+    brand_primary_color:  payload.brand_color,
+    brand_tagline:        payload.tagline,
+    onboarding_completed: payload.onboarding_complete,
+    qr_request_status:    'not_requested',
+    updated_at:           new Date().toISOString(),
+  };
+
+  let data;
+  let error;
+
+  if (legacyBusinessId) {
+    ({ data, error } = await supabase
+      .from('businesses')
+      .update(legacyPayload)
+      .eq('id', legacyBusinessId)
+      .select()
+      .single());
+  } else {
+    ({ data, error } = await supabase
+      .from('businesses')
+      .insert(legacyPayload)
+      .select()
+      .single());
+  }
+
+  return {
+    business: normalizeLegacyBusiness((data ?? null) as Record<string, unknown> | null),
+    error,
+  };
+}
+
+function attachBusinessCookie(response: NextResponse, businessId: unknown) {
+  if (typeof businessId !== 'string' || !businessId) return;
+
+  response.cookies.set(BUSINESS_COOKIE, businessId, {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24 * 30,
+  });
+}
+
+/* GET /api/businesses */
+export async function GET() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { business, error } = await getCurrentBusiness(supabase, user.id);
+  if (error) {
+    return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
+  }
+
+  return NextResponse.json({ business });
+}
+
+/* POST /api/businesses - upsert (used by onboarding to progressively save) */
+export async function POST(req: NextRequest) {
+  const supabase = await createClient();
+  const db = createAdminClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const body = await req.json().catch(() => null);
+  const payload = buildPayload(body as Record<string, unknown> | null, user.id);
+  if (!payload.name) return NextResponse.json({ error: 'name is required' }, { status: 400 });
+
+  let result = await upsertBusinessViaRpc(db as Awaited<ReturnType<typeof createClient>>, payload);
+
+  if (result.error && isMissingUpsertRpcError(result.error)) {
+    result = await upsertBusinessDirect(db as Awaited<ReturnType<typeof createClient>>, user.id, payload);
+  }
+
+  if (result.error && shouldUseLegacyBusinessFallback(result.error)) {
+    result = await upsertLegacyBusiness(
+      db as Awaited<ReturnType<typeof createClient>>,
+      req.cookies.get(BUSINESS_COOKIE)?.value ?? null,
+      payload,
+    );
+  }
+
+  if (result.error) {
+    console.error('[POST /api/businesses]', result.error);
+    return NextResponse.json(
+      { error: result.error.message, code: result.error.code },
+      { status: 500 },
+    );
+  }
+
+  const response = NextResponse.json({ business: result.business }, { status: 201 });
+  attachBusinessCookie(response, result.business?.id);
+  return response;
+}
+
+/* PATCH /api/businesses - partial update */
 export async function PATCH(req: NextRequest) {
   const supabase = await createClient();
+  const db = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -101,13 +248,68 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
   }
 
-  const { data: business, error } = await supabase
-    .from('businesses')
-    .update(updates)
-    .eq('owner_id', user.id)
-    .select()
-    .single();
+  const current = await getCurrentBusiness(supabase, user.id);
+  if (current.error) {
+    return NextResponse.json({ error: current.error.message, code: current.error.code }, { status: 500 });
+  }
+  if (!current.business) {
+    return NextResponse.json({ error: 'Business not found' }, { status: 404 });
+  }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ business });
+  const payload: BusinessPayload = {
+    owner_id: user.id,
+    name: typeof updates.name === 'string' ? updates.name : String(current.business.name ?? ''),
+    tagline: 'tagline' in updates
+      ? (updates.tagline as string | null)
+      : (current.business.tagline as string | null),
+    google_link: 'google_link' in updates
+      ? (updates.google_link as string | null)
+      : (current.business.google_link as string | null),
+    brand_color: typeof updates.brand_color === 'string'
+      ? updates.brand_color
+      : String(current.business.brand_color ?? '#6E5BFF'),
+    logo_initials: typeof updates.logo_initials === 'string'
+      ? updates.logo_initials
+      : String(current.business.logo_initials ?? 'BZ'),
+    min_rating_for_google: typeof updates.min_rating_for_google === 'number'
+      ? updates.min_rating_for_google
+      : Number(current.business.min_rating_for_google ?? 4),
+    language: typeof updates.language === 'string'
+      ? updates.language
+      : String(current.business.language ?? 'en'),
+    review_platforms: Array.isArray(updates.review_platforms)
+      ? updates.review_platforms as { id: string; url: string; enabled: boolean }[]
+      : (
+        Array.isArray(current.business.review_platforms)
+          ? current.business.review_platforms as { id: string; url: string; enabled: boolean }[]
+          : []
+      ),
+    onboarding_complete: typeof updates.onboarding_complete === 'boolean'
+      ? updates.onboarding_complete
+      : Boolean(current.business.onboarding_complete),
+  };
+
+  let result = current.schema === 'legacy'
+    ? await upsertLegacyBusiness(db as Awaited<ReturnType<typeof createClient>>, String(current.business.id), payload)
+    : await upsertBusinessViaRpc(db as Awaited<ReturnType<typeof createClient>>, payload);
+
+  if (current.schema !== 'legacy' && result.error && isMissingUpsertRpcError(result.error)) {
+    result = await upsertBusinessDirect(db as Awaited<ReturnType<typeof createClient>>, user.id, payload);
+  }
+
+  if (result.error && shouldUseLegacyBusinessFallback(result.error)) {
+    result = await upsertLegacyBusiness(
+      db as Awaited<ReturnType<typeof createClient>>,
+      req.cookies.get(BUSINESS_COOKIE)?.value ?? String(current.business.id),
+      payload,
+    );
+  }
+
+  if (result.error) {
+    return NextResponse.json({ error: result.error.message, code: result.error.code }, { status: 500 });
+  }
+
+  const response = NextResponse.json({ business: result.business });
+  attachBusinessCookie(response, result.business?.id);
+  return response;
 }

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 
 const securityHeaders = [
   { key: "X-DNS-Prefetch-Control",    value: "on" },
@@ -12,7 +13,9 @@ const securityHeaders = [
   },
 ];
 
-const nextConfig: NextConfig = {
+const nextConfig = (phase: string): NextConfig => ({
+  // Keep dev and production outputs separate to avoid mixed `.next` artifacts.
+  distDir: phase === PHASE_DEVELOPMENT_SERVER ? ".next-dev" : ".next",
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -44,6 +47,6 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-};
+});
 
 export default nextConfig;

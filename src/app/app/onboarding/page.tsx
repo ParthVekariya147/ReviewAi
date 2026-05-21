@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentBusiness } from '@/lib/businesses/current';
 import ScreenOnboarding from '@/components/dashboard/screens/ScreenOnboarding';
 
 export default async function OnboardingPage() {
@@ -6,11 +7,17 @@ export default async function OnboardingPage() {
   const { data: { user } } = await supabase.auth.getUser();
 
   // Load any partial save so the wizard can pre-fill and resume
-  const { data: biz } = await supabase
-    .from('businesses')
-    .select('name, tagline, brand_color, logo_initials, google_link, review_platforms, min_rating_for_google, language')
-    .eq('owner_id', user!.id)
-    .maybeSingle();
+  const { business: biz } = await getCurrentBusiness(supabase, user!.id);
+  const existingBusiness = biz ? {
+    name: biz.name as string,
+    tagline: (biz.tagline as string | null) ?? null,
+    brand_color: biz.brand_color as string,
+    logo_initials: biz.logo_initials as string,
+    google_link: (biz.google_link as string | null) ?? null,
+    review_platforms: Array.isArray(biz.review_platforms) ? biz.review_platforms : [],
+    min_rating_for_google: Number(biz.min_rating_for_google ?? 4),
+    language: String(biz.language ?? 'en'),
+  } : null;
 
   return (
     <ScreenOnboarding
@@ -22,7 +29,7 @@ export default async function OnboardingPage() {
         google_link:   user!.user_metadata?.google_link   ?? '',
         industry:      user!.user_metadata?.industry      ?? '',
       }}
-      existingBusiness={biz ?? null}
+      existingBusiness={existingBusiness}
     />
   );
 }

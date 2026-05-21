@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getCurrentBusiness } from '@/lib/businesses/current';
 import { getPlanLimits } from '@/lib/billing/plans';
 
 /* GET /api/billing/usage
@@ -8,29 +10,29 @@ import { getPlanLimits } from '@/lib/billing/plans';
    subscription.current_period_end when a billing record exists. */
 export async function GET() {
   const supabase = await createClient();
+  const db = createAdminClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Fetch business + subscription in parallel
-  const [bizResult, subResult] = await Promise.all([
-    supabase.from('businesses').select('id, plan').eq('owner_id', user.id).single(),
-    supabase.from('subscriptions').select('current_period_end, plan, status').eq('business_id',
-      // sub-select to avoid two round-trips for business_id
-      supabase.from('businesses').select('id').eq('owner_id', user.id).single() as unknown as string
-    ).maybeSingle(),
-  ]);
-
-  const biz = bizResult.data;
+  const { business: biz, error: businessError } = await getCurrentBusiness(db as Awaited<ReturnType<typeof createClient>>, user.id);
+  if (businessError) {
+    return NextResponse.json({ error: businessError.message, code: businessError.code }, { status: 500 });
+  }
   if (!biz) return NextResponse.json({ error: 'No business found' }, { status: 404 });
+
+  const { data: sub } = await db
+    .from('subscriptions')
+    .select('current_period_end, plan, status')
+    .eq('business_id', biz.id as string)
+    .maybeSingle();
 
   // Determine billing period
   const now = new Date();
   let periodStart: Date;
   let periodEnd: Date;
 
-  const sub = subResult.data;
   if (sub?.current_period_end) {
     periodEnd   = new Date(sub.current_period_end);
     periodStart = new Date(periodEnd);
@@ -51,21 +53,21 @@ export async function GET() {
   // Run all DB reads in parallel
   const [eventsResult, campaignsResult, campaignBreakdownResult] = await Promise.all([
     // Aggregated event counts for current period
-    supabase
+    db
       .from('analytics_events')
       .select('event_type, qr_id, created_at')
       .eq('business_id', biz.id)
       .gte('created_at', sinceIso),
 
     // Active campaign count
-    supabase
+    db
       .from('qr_codes')
       .select('id', { count: 'exact', head: true })
       .eq('business_id', biz.id)
       .neq('status', 'archived'),
 
     // Per-campaign generate counts (for "by campaign" breakdown)
-    supabase
+    db
       .from('analytics_events')
       .select('qr_id')
       .eq('business_id', biz.id)
@@ -108,7 +110,7 @@ export async function GET() {
     .map(([id]) => id);
 
   const { data: topCampaigns } = topQrIds.length
-    ? await supabase.from('qr_codes').select('id, campaign_name').in('id', topQrIds)
+    ? await db.from('qr_codes').select('id, campaign_name').in('id', topQrIds)
     : { data: [] };
 
   const byCampaign = (topCampaigns ?? []).map(q => ({
