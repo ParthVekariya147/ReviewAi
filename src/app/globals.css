@@ -1423,4 +1423,390 @@ button { font-family: inherit; }
 .lp-skel { background: linear-gradient(90deg, var(--lp-bg-subtle), var(--lp-border-soft), var(--lp-bg-subtle)); background-size: 200% 100%; animation: lp-shimmer 1.5s infinite; }
 @keyframes lp-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 .lp-page > * { animation: lp-fadeup 0.35s ease-out; }
+
+/* =========================================================
+   rv-funnel — Customer QR Funnel  /r/[token]
+   Mobile-first, full-page, no nav
+   ========================================================= */
+
+.rv-funnel-root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: var(--rv-brand, #6E5BFF);
+  position: relative;
+  overflow: hidden;
+  font-family: var(--font-sans);
+}
+
+.rv-funnel-root::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255,255,255,0.18) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.rv-funnel-root::after {
+  content: '';
+  position: absolute;
+  bottom: -120px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.12);
+  filter: blur(80px);
+  pointer-events: none;
+}
+
+.rv-funnel-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 400px;
+  background: #fff;
+  border-radius: 24px;
+  box-shadow: 0 32px 80px -16px rgba(0,0,0,0.28), 0 8px 24px rgba(0,0,0,0.12);
+  overflow: hidden;
+}
+
+.rv-funnel-header {
+  padding: 28px 28px 0;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.rv-funnel-logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.5px;
+  background: var(--rv-brand, #6E5BFF);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+
+.rv-funnel-biz-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0A0A14;
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+
+.rv-funnel-tagline {
+  font-size: 13px;
+  color: #6A6A7B;
+  margin: 0;
+}
+
+.rv-funnel-body {
+  padding: 24px 28px 28px;
+}
+
+.rv-funnel-step-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0A0A14;
+  text-align: center;
+  margin: 0 0 6px;
+  letter-spacing: -0.4px;
+}
+
+.rv-funnel-step-sub {
+  font-size: 14px;
+  color: #6A6A7B;
+  text-align: center;
+  margin: 0 0 24px;
+  line-height: 1.5;
+}
+
+/* Stars */
+.rv-stars {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.rv-star-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  line-height: 1;
+  border-radius: 8px;
+}
+
+.rv-star-btn:hover { transform: scale(1.15); }
+.rv-star-btn:active { transform: scale(0.92); }
+
+.rv-star-svg {
+  width: 48px;
+  height: 48px;
+  transition: fill 0.12s ease, filter 0.12s ease;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.08));
+}
+
+.rv-star-svg.active {
+  filter: drop-shadow(0 2px 8px rgba(251,191,36,0.5));
+}
+
+.rv-star-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #6A6A7B;
+  text-align: center;
+  min-height: 20px;
+  margin-bottom: 16px;
+  transition: color 0.15s;
+}
+
+/* Primary CTA button */
+.rv-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 15px 20px;
+  border: none;
+  border-radius: 14px;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
+  letter-spacing: -0.1px;
+}
+
+.rv-btn:active { transform: scale(0.98); }
+
+.rv-btn-primary {
+  background: var(--rv-brand, #6E5BFF);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+}
+
+.rv-btn-primary:hover { opacity: 0.92; box-shadow: 0 6px 20px rgba(0,0,0,0.22); }
+.rv-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+.rv-btn-ghost {
+  background: #F4F4F8;
+  color: #2A2A38;
+}
+
+.rv-btn-ghost:hover { background: #ECECF1; }
+
+.rv-btn-success {
+  background: #16a34a;
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(22,163,74,0.3);
+}
+
+/* Review text card */
+.rv-review-card {
+  background: #FAFAFC;
+  border: 1.5px solid #ECECF1;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 12px;
+  position: relative;
+}
+
+.rv-review-text {
+  font-size: 14px;
+  line-height: 1.65;
+  color: #2A2A38;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.rv-review-textarea {
+  width: 100%;
+  min-height: 120px;
+  border: none;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.65;
+  color: #2A2A38;
+  resize: vertical;
+  outline: none;
+}
+
+.rv-review-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.rv-review-actions .rv-btn {
+  flex: 1;
+  padding: 11px 14px;
+  font-size: 13.5px;
+  border-radius: 10px;
+}
+
+/* Generating spinner */
+.rv-generating {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 0 4px;
+}
+
+.rv-spinner-ring {
+  width: 48px;
+  height: 48px;
+  border: 3px solid #ECECF1;
+  border-top-color: var(--rv-brand, #6E5BFF);
+  border-radius: 50%;
+  animation: rv-spin 0.8s linear infinite;
+}
+
+@keyframes rv-spin { to { transform: rotate(360deg); } }
+
+.rv-generating-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0A0A14;
+  margin: 0;
+}
+
+.rv-generating-dots::after {
+  content: '';
+  animation: rv-dots 1.2s steps(4, end) infinite;
+}
+
+@keyframes rv-dots {
+  0%   { content: ''; }
+  25%  { content: '.'; }
+  50%  { content: '..'; }
+  75%  { content: '...'; }
+  100% { content: ''; }
+}
+
+/* Private feedback */
+.rv-private-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px 14px;
+  border: 1.5px solid #ECECF1;
+  border-radius: 12px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  color: #0A0A14;
+  background: #fff;
+  resize: none;
+  outline: none;
+  transition: border-color 0.15s;
+  margin-bottom: 12px;
+}
+
+.rv-private-textarea:focus { border-color: var(--rv-brand, #6E5BFF); }
+
+/* Success screen */
+.rv-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  text-align: center;
+}
+
+.rv-success-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #DCFCE7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: rv-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+
+.rv-success-icon svg { color: #16a34a; }
+
+@keyframes rv-pop {
+  from { transform: scale(0.4); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+.rv-success-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0A0A14;
+  margin: 0;
+  letter-spacing: -0.4px;
+}
+
+.rv-success-sub {
+  font-size: 14px;
+  color: #6A6A7B;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Step transition */
+.rv-step-enter { animation: rv-step-in 0.22s ease-out both; }
+.rv-step-exit  { animation: rv-step-out 0.18s ease-in both; }
+
+@keyframes rv-step-in  { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+@keyframes rv-step-out { from { opacity:1; transform:translateY(0); }   to { opacity:0; transform:translateY(-8px); } }
+
+/* Divider */
+.rv-divider {
+  height: 1px;
+  background: #ECECF1;
+  margin: 4px 0 20px;
+}
+
+/* Powered by badge */
+.rv-poweredby {
+  position: relative;
+  z-index: 1;
+  margin-top: 16px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.65);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.rv-poweredby a {
+  color: rgba(255,255,255,0.9);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+/* Invalid token */
+.rv-invalid {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  color: rgba(255,255,255,0.9);
+  max-width: 320px;
+}
+
+.rv-invalid h2 { font-size: 22px; font-weight: 700; margin: 0 0 8px; color: #fff; }
+.rv-invalid p  { font-size: 14px; margin: 0; line-height: 1.6; }
 @keyframes lp-fadeup { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
