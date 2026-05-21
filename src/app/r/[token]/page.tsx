@@ -7,7 +7,23 @@ export const metadata: Metadata = {
   description: 'Leave a quick review — it only takes 30 seconds.',
 };
 
+const DEMO_BUSINESS: BusinessData = {
+  name:               'Olive & Pine',
+  tagline:            "NW Portland's favourite Italian kitchen",
+  googleLink:         'https://g.page/r/demo-review-link',
+  brandColor:         '#6E5BFF',
+  logoInitials:       'OP',
+  minRatingForGoogle: 4,
+  language:           'en',
+};
+
 async function lookupToken(token: string): Promise<BusinessData | null> {
+  /* Built-in demo token — always works; useful for testing + sales demos */
+  if (token === 'demo' || token.startsWith('demo-')) return DEMO_BUSINESS;
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+  if (!supabaseUrl.startsWith('http')) return null;
+
   try {
     const supabase = await createClient();
     const { data: qr } = await supabase
@@ -41,16 +57,7 @@ async function lookupToken(token: string): Promise<BusinessData | null> {
       language:           biz.language,
     };
   } catch {
-    /* Supabase not configured in dev — serve a demo business */
-    return {
-      name:               'Olive & Pine',
-      tagline:            "NW Portland's favourite Italian kitchen",
-      googleLink:         'https://g.page/r/demo-review-link',
-      brandColor:         '#6E5BFF',
-      logoInitials:       'OP',
-      minRatingForGoogle: 4,
-      language:           'en',
-    };
+    return null;
   }
 }
 

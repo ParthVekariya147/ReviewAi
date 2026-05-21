@@ -231,12 +231,12 @@ function Deep({ flip, eyebrow, title, body, bullets, visual }: {
   return (
     <div style={{
       display: "grid",
-      gridTemplateColumns: "1fr 1fr",
+      gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)",
       gap: 80,
       alignItems: "center",
       direction: flip ? "rtl" : "ltr",
     }} className="deep-grid">
-      <div style={{ direction: "ltr" }}>
+      <div style={{ direction: "ltr", minWidth: 0 }}>
         <span className="eyebrow"><span className="dot" /> {eyebrow}</span>
         <h3 className="h2" style={{ marginTop: 18, fontSize: "clamp(28px, 3.2vw, 40px)" }}>{title}</h3>
         <p className="lead" style={{ marginTop: 18, fontSize: 17 }}>{body}</p>
@@ -254,7 +254,7 @@ function Deep({ flip, eyebrow, title, body, bullets, visual }: {
           ))}
         </ul>
       </div>
-      <div style={{ direction: "ltr" }}>{visual}</div>
+      <div style={{ direction: "ltr", minWidth: 0, overflowX: "auto" }}>{visual}</div>
     </div>
   );
 }

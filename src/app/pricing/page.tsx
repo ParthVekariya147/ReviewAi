@@ -255,7 +255,8 @@ export default function PricingPage() {
               <span className="eyebrow"><span className="dot" /> Compare</span>
               <h2 className="h2" style={{ marginTop: 18 }}>Full feature comparison.</h2>
             </div>
-            <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+            <div className="comparison-scroll">
+            <div className="card" style={{ padding: 0, overflow: "hidden", minWidth: 540 }}>
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", padding: "20px 24px", background: "var(--surface)", borderBottom: "1px solid var(--border)", position: "sticky", top: 60, zIndex: 5 }}>
                 <div style={{ fontSize: 13, color: "var(--muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.05em" }}>FEATURE</div>
                 {(["Starter", "Growth", "Business"] as const).map((n, i) => (
@@ -281,6 +282,7 @@ export default function PricingPage() {
                 </div>
               ))}
             </div>
+            </div>{/* /comparison-scroll */}
           </div>
         </section>
 
@@ -298,7 +300,7 @@ export default function PricingPage() {
                 <p className="lead" style={{ marginTop: 14, fontSize: 16 }}>
                   Custom volume pricing, dedicated CSM, white-label, SSO, audit log, contractual SLA. Built for 50+ locations.
                 </p>
-                <div style={{ display: "flex", marginTop: 22, gap: 12 }}>
+                <div style={{ display: "flex", marginTop: 22, gap: 12, flexWrap: "wrap" }}>
                   <Link href="/contact" className="btn btn-primary">Talk to sales <ArrowIcon /></Link>
                   <button className="btn btn-ghost">Download SOC 2 report</button>
                 </div>

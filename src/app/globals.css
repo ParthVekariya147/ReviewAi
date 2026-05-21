@@ -103,6 +103,25 @@ button { font-family: inherit; }
   .section.tight { padding: 56px 0; }
 }
 
+/* ── Marketing responsive fixes ── */
+/* Features page: 2-col deep-dive grid → single col on mobile */
+@media (max-width: 860px) {
+  .deep-grid {
+    grid-template-columns: 1fr !important;
+    gap: 36px !important;
+    direction: ltr !important;
+  }
+}
+
+/* Pricing page: comparison table scrollable on mobile */
+.comparison-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.comparison-scroll::-webkit-scrollbar { height: 4px; }
+.comparison-scroll::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+
 /* eyebrow */
 .eyebrow {
   display: inline-flex;

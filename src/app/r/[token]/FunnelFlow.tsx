@@ -181,7 +181,8 @@ export default function FunnelFlow({
     setSubmitting(true);
     track('private_feedback', { rating, feedback: privateFb });
     // TODO: POST /api/reviews/private { token, rating, feedback }
-    setTimeout(() => { setSubmitted(true); setTimeout(() => goTo('success'), 800); }, 1000);
+    setTimeout(() => { setSubmitted(true); }, 900);
+    setTimeout(() => goTo('success'), 1600);
   }
 
   /* Redirect from success if Google tab was opened */

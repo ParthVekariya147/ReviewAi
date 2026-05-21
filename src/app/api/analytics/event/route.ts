@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { detectDevice } from '@/lib/analytics/events';
+import { rateLimit, getClientIp } from '@/lib/security/rateLimit';
 import type { EventType } from '@/types/database';
 
 const VALID_EVENTS: EventType[] = [
@@ -9,8 +10,16 @@ const VALID_EVENTS: EventType[] = [
 
 /* POST /api/analytics/event
    Called from the customer funnel (no auth required).
-   Resolves business_id from the token before inserting.   */
+   Rate limited: 60 events / minute per IP.               */
 export async function POST(req: NextRequest) {
+  const ip  = getClientIp(req);
+  const rl  = rateLimit(`analytics:${ip}`, 60, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Too many requests' }, {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+    });
+  }
   let body: { token?: string; event?: string; meta?: Record<string, unknown> };
   try { body = await req.json(); } catch { body = {}; }
 

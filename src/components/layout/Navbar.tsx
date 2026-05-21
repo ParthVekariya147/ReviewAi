@@ -40,7 +40,7 @@ export default function Navbar() {
   const pathname = usePathname();
 
   return (
-    <div className="nav">
+    <nav className="nav">
       <div className="nav-inner">
         <Link href="/" className="brand">
           <BrandMark size={28} />
@@ -116,6 +116,6 @@ export default function Navbar() {
           </div>
         </div>
       )}
-    </div>
+    </nav>
   );
 }

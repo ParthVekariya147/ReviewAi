@@ -83,6 +83,7 @@ export default function TestimonialsSection() {
                 <button
                   key={j}
                   onClick={() => setIdx(j)}
+                  aria-label={`Go to testimonial ${j + 1}`}
                   style={{ width: j === idx ? 24 : 8, height: 8, borderRadius: 999, background: j === idx ? "var(--accent)" : "var(--border-strong)", border: 0, cursor: "pointer", transition: "width .3s, background .2s" }}
                 />
               ))}

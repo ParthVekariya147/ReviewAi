@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { generateQRPng, generateQRSvg } from '@/lib/qr/generate';
+import { rateLimit, getClientIp } from '@/lib/security/rateLimit';
 
 type Params = Promise<{ id: string }>;
 
@@ -9,6 +10,16 @@ const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://reevo.io';
 /* GET /api/qr/[id]/image?format=png|svg&color=%23000000&bg=%23FFFFFF&size=512
    Returns the QR image for a campaign. Auth required (owner only).             */
 export async function GET(req: NextRequest, { params }: { params: Params }) {
+  /* Rate limit: 30 image downloads / minute per IP */
+  const ip = getClientIp(req);
+  const rl = rateLimit(`qr-image:${ip}`, 30, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Too many requests' }, {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+    });
+  }
+
   const { id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
