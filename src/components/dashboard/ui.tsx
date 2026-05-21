@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo, useLayoutEffect } from 'react';
+import QRCode from 'qrcode';
 
 /* ========================= ICONS ========================= */
 export type IconName =
@@ -461,6 +462,16 @@ export const Chart = ({ data, keys = ['y'], colors = ['primary'], height = 220, 
   const innerH = height - padT - padB;
   const hasData = data.length > 0;
 
+  if (data.length === 0) {
+    return (
+      <div ref={ref} className="lp-chart">
+        <svg width={w} height={height}>
+          <text x={w / 2} y={height / 2} textAnchor="middle" dominantBaseline="middle" className="lp-axis">No data yet</text>
+        </svg>
+      </div>
+    );
+  }
+
   const allVals = data.flatMap(d => keys.map(k => (d[k] as number) || 0));
   const maxVal = allVals.length > 0 ? Math.max(1, Math.max(...allVals) * 1.15) : 1;
   const range = maxVal;
@@ -759,42 +770,30 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath();
 }
 
-export const QRCanvas = ({ value, size = 200, color = '#0A0B14', bg = '#FFFFFF', logo, radius = 12, padding = 14 }: QRCanvasProps) => {
+export const QRCanvas = ({ value, size = 200, color = '#0A0B14', bg = '#FFFFFF', logo, radius = 12 }: QRCanvasProps) => {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    if (!ref.current) return;
-    // Fallback: draw a placeholder checkerboard if qrcode lib isn't loaded
+    if (!ref.current || !value) return;
     const canvas = ref.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = size * dpr;
-    canvas.height = size * dpr;
-    canvas.style.width = size + 'px';
-    canvas.style.height = size + 'px';
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.scale(dpr, dpr);
-    ctx.fillStyle = bg;
-    roundRect(ctx, 0, 0, size, size, radius);
-    ctx.fill();
-    // draw simple placeholder grid
-    ctx.fillStyle = color;
-    const cells = 21;
-    const inner = size - padding * 2;
-    const cell = inner / cells;
-    for (let r = 0; r < cells; r++) {
-      for (let c = 0; c < cells; c++) {
-        if ((r + c) % 2 === 0 || r < 3 || (r > 8 && c < 3) || (r < 3 && c > 8)) {
-          const x = padding + c * cell + cell * 0.1;
-          const y = padding + r * cell + cell * 0.1;
-          const s = cell * 0.8;
-          ctx.beginPath();
-          ctx.arc(x + s / 2, y + s / 2, s / 2, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-    }
-  }, [value, size, color, bg, radius, padding, logo]);
+    QRCode.toCanvas(canvas, value, {
+      width: size,
+      margin: 1,
+      color: { dark: color, light: bg },
+      errorCorrectionLevel: 'M',
+    }).then(() => {
+      // Apply rounded corners by clipping the canvas contents
+      const ctx = canvas.getContext('2d');
+      if (!ctx || radius <= 0) return;
+      const img = new Image();
+      img.src = canvas.toDataURL();
+      img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        roundRect(ctx, 0, 0, canvas.width, canvas.height, radius * (canvas.width / size));
+        ctx.clip();
+        ctx.drawImage(img, 0, 0);
+      };
+    }).catch(() => {/* never break the dashboard */});
+  }, [value, size, color, bg, radius, logo]);
 
   return (
     <div className="lp-qr-wrap" style={{ width: size, height: size }}>

@@ -14,7 +14,6 @@ const securityHeaders = [
 ];
 
 const nextConfig = (phase: string): NextConfig => ({
-  // Keep dev and production outputs separate to avoid mixed `.next` artifacts.
   distDir: phase === PHASE_DEVELOPMENT_SERVER ? ".next-dev" : ".next",
   eslint: {
     ignoreDuringBuilds: true,

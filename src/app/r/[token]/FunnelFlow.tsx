@@ -171,10 +171,20 @@ export default function FunnelFlow({
     void trackEvent({ token, event, meta: extra });
   }, [token]);
 
+  /* fire scan exactly once on mount — ref guard prevents the double-fire
+     that React StrictMode causes in development */
+  const scanFired = useRef(false);
+  useEffect(() => {
+    if (valid && !scanFired.current) {
+      scanFired.current = true;
+      track('scan');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /* handle star selection */
   function handleStar(stars: number) {
     setRating(stars);
-    track('scan', { stars });
     if (stars >= (business?.minRatingForGoogle ?? 4)) {
       goTo('generating');
       // Simulate Gemini latency (real call wired in Module 6)
@@ -281,7 +291,7 @@ export default function FunnelFlow({
             <>
               <h2 className="rv-funnel-step-title">{t(lang, 'welcome')}</h2>
               <p className="rv-funnel-step-sub">{t(lang, 'welcomeSub')}</p>
-              <button className="rv-btn rv-btn-primary" onClick={() => { track('scan'); goTo('rating'); }}>
+              <button className="rv-btn rv-btn-primary" onClick={() => goTo('rating')}>
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                   <path d="M9 1.5l2.09 4.24L16 6.62l-3.5 3.4.83 4.82L9 12.5l-4.33 2.34.83-4.82L2 6.62l4.91-.88L9 1.5z"
                     fill="currentColor"/>

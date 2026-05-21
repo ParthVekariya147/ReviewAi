@@ -234,14 +234,28 @@ drop policy if exists "analytics_public_insert"       on public.analytics_events
 drop policy if exists "subscriptions_owner"           on public.subscriptions;
 drop policy if exists "invoices_owner"                on public.invoices;
 
+-- Helper: check if a business has a live QR code without triggering RLS on qr_codes
+-- (security definer bypasses RLS, breaking the businesses ↔ qr_codes policy cycle)
+create or replace function public.business_has_live_qr(p_business_id uuid)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.qr_codes
+    where business_id = p_business_id
+      and status = 'live'
+  );
+$$;
+
 -- businesses
 create policy "businesses_owner" on public.businesses
   for all using (owner_id = auth.uid());
 
 create policy "businesses_public_read" on public.businesses
-  for select using (
-    id in (select business_id from public.qr_codes where status = 'live')
-  );
+  for select using (public.business_has_live_qr(id));
 
 -- qr_codes
 create policy "qr_codes_owner" on public.qr_codes
