@@ -35,13 +35,14 @@ const DEVICE_META: Record<string, { icon: IconName; tone: string; label: string 
 // ── types ────────────────────────────────────────────────────
 
 interface SummaryData {
-  window_days:  number;
-  totals:       Record<string, number>;
-  daily_series: { date: string; scan: number; generate: number; refresh: number; copy: number; redirect: number; complete: number; private_feedback: number }[];
-  by_device:    Record<string, number>;
-  by_country:   { country: string; count: number }[];
-  by_hour:      number[];
-  by_dow:       number[];
+  window_days:       number;
+  totals:            Record<string, number>;
+  daily_series:      { date: string; scan: number; generate: number; refresh: number; copy: number; redirect: number; complete: number; private_feedback: number }[];
+  by_device:         Record<string, number>;
+  by_country:        { country: string; count: number }[];
+  by_hour:           number[];
+  by_dow:            number[];
+  draft_acceptance?: { first: number; second: number };
 }
 
 // ── sub-components ───────────────────────────────────────────
@@ -90,6 +91,10 @@ export default function ScreenAnalytics() {
   const copiesTotal    = t['copy']     ?? 0;
   const redirectsTotal = t['redirect'] ?? 0;
   const completesTotal = t['complete'] ?? 0;
+
+  const draftFirst  = data?.draft_acceptance?.first  ?? 0;
+  const draftSecond = data?.draft_acceptance?.second ?? 0;
+  const draftTotal  = draftFirst + draftSecond || 1;
 
   // Derive sparkline arrays from daily_series
   const ds = data?.daily_series ?? [];
@@ -320,6 +325,32 @@ export default function ScreenAnalytics() {
         <div className="lp-heat-x">
           {[0, 6, 12, 18, 23].map(h => <span key={h}>{h}:00</span>)}
         </div>
+      </Card>
+
+      {/* Draft acceptance */}
+      <Card>
+        <CardHeader title="AI draft acceptance" subtitle="Which draft customers actually used" />
+        <div className="lp-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+          {[
+            { label: '1st Draft Used', value: draftFirst,  tone: 'primary', icon: 'sparkles' as const },
+            { label: '2nd Draft Used', value: draftSecond, tone: 'violet',  icon: 'refresh'  as const },
+          ].map(d => (
+            <div key={d.label} className="lp-card" style={{ padding: 16 }}>
+              <div className="lp-flex" style={{ gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                <span className={`lp-device-icon lp-tone-${d.tone}`}><Icon name={d.icon} size={14} /></span>
+                <span style={{ fontSize: 12, color: 'var(--lp-fg-muted)' }}>{d.label}</span>
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>{fmt(d.value)}</div>
+              <Progress value={(d.value / draftTotal) * 100} tone={d.tone} height={6} />
+              <div style={{ fontSize: 11, color: 'var(--lp-fg-muted)', marginTop: 4 }}>{pct(d.value / draftTotal)} of copies</div>
+            </div>
+          ))}
+        </div>
+        {(draftFirst + draftSecond) === 0 && (
+          <div style={{ textAlign: 'center', color: 'var(--lp-fg-muted)', fontSize: 13, padding: '8px 0' }}>
+            No copy events yet — data appears once customers use the funnel
+          </div>
+        )}
       </Card>
     </div>
   );

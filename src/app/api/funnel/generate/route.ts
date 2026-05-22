@@ -7,9 +7,9 @@ import type { ReviewPlatformEntry } from '@/lib/platforms';
 
 /* POST /api/funnel/generate
    Called from the customer funnel (no auth required).
-   Generates an AI review draft and saves it to generated_reviews.
+   Generates 2 AI drafts in parallel and saves both to generated_reviews.
    Body: { token: string; rating: number }
-   Returns: { text: string; review_id: string }            */
+   Returns: { drafts: [{ text: string; review_id: string }] }  */
 export async function POST(req: NextRequest) {
   /* Rate limit: 20 generations / minute per IP */
   const ip = getClientIp(req);
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   let body: { token?: string; rating?: number };
   try { body = await req.json(); } catch { body = {}; }
 
-  const token  = typeof body.token  === 'string'  ? body.token.trim()      : '';
+  const token  = typeof body.token  === 'string'  ? body.token.trim()       : '';
   const rating = typeof body.rating === 'number'  ? Math.round(body.rating) : 0;
 
   if (!token || rating < 1 || rating > 5) {
@@ -64,40 +64,51 @@ export async function POST(req: NextRequest) {
     review_keywords: string | null;
   };
 
-  /* Generate the review text via multi-provider AI */
-  let aiText: string;
-  try {
-    aiText = await generateReview({
-      businessName:   biz.name,
-      tagline:        biz.tagline        ?? '',
-      businessType:   biz.business_type  ?? '',
-      reviewKeywords: biz.review_keywords ?? '',
-      rating,
-      language:       biz.language ?? 'en',
-    });
-  } catch (e) {
-    console.error('[funnel/generate] AI error:', e);
+  const reviewReq = {
+    businessName:   biz.name,
+    tagline:        biz.tagline        ?? '',
+    businessType:   biz.business_type  ?? '',
+    reviewKeywords: biz.review_keywords ?? '',
+    rating,
+    language:       biz.language ?? 'en',
+  };
+
+  /* Generate 2 drafts in parallel */
+  const [r1, r2] = await Promise.allSettled([
+    generateReview(reviewReq),
+    generateReview(reviewReq),
+  ]);
+
+  const texts: string[] = [];
+  if (r1.status === 'fulfilled') texts.push(r1.value);
+  if (r2.status === 'fulfilled') texts.push(r2.value);
+
+  if (texts.length === 0) {
+    console.error('[funnel/generate] Both AI generations failed');
     return NextResponse.json({ error: 'Generation failed' }, { status: 503 });
   }
 
-  /* Save to generated_reviews — use admin client to bypass RLS (public funnel, no user session) */
+  /* Save all successful drafts to generated_reviews */
   const db = createAdminClient();
-  const { data: review, error: dbError } = await db
-    .from('generated_reviews')
-    .insert({
-      qr_id:       qr.id,
-      business_id: qr.business_id,
-      rating,
-      ai_text:     aiText,
-      status:      'generated',
-    })
-    .select('id')
-    .single();
+  const inserts = texts.map(ai_text => ({
+    qr_id:       qr.id,
+    business_id: qr.business_id,
+    rating,
+    ai_text,
+    status: 'generated',
+  }));
 
-  if (dbError || !review) {
+  const { data: saved, error: dbError } = await db
+    .from('generated_reviews')
+    .insert(inserts)
+    .select('id, ai_text')
+    .order('created_at', { ascending: true });
+
+  if (dbError || !saved?.length) {
     console.error('[funnel/generate] DB error:', dbError);
     return NextResponse.json({ error: 'Failed to save your review. Please try again.' }, { status: 503 });
   }
 
-  return NextResponse.json({ text: aiText, review_id: review.id });
+  const drafts = saved.map(r => ({ text: r.ai_text as string, review_id: r.id as string }));
+  return NextResponse.json({ drafts });
 }

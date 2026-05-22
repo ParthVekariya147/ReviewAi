@@ -103,7 +103,9 @@ function platformMeta(id: string) {
 
 /* ── AI review generation ─────────────────────────────── */
 
-async function fetchReview(token: string, rating: number): Promise<{ text: string; reviewId: string | null }> {
+type Draft = { text: string; reviewId: string | null };
+
+async function fetchDrafts(token: string, rating: number): Promise<Draft[]> {
   const res = await fetch('/api/funnel/generate', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -111,7 +113,11 @@ async function fetchReview(token: string, rating: number): Promise<{ text: strin
   });
   if (!res.ok) throw new Error(`Generation failed: ${res.status}`);
   const json = await res.json();
-  return { text: json.text as string, reviewId: json.review_id as string | null };
+  const arr = Array.isArray(json.drafts) ? json.drafts : [];
+  return arr.map((d: { text: string; review_id: string }) => ({
+    text:     d.text,
+    reviewId: d.review_id ?? null,
+  }));
 }
 
 async function updateReviewStatus(
@@ -166,15 +172,20 @@ export default function FunnelFlow({
   const [step, setStep]       = useState<Step>('landing');
   const [rating, setRating]   = useState(0);
   const [hovered, setHovered] = useState(0);
-  const [reviewText, setReviewText] = useState('');
-  const [reviewId, setReviewId]     = useState<string | null>(null);
-  const [editing, setEditing]       = useState(false);
+  const [drafts, setDrafts]   = useState<Draft[]>([]);
+  const [draftIdx, setDraftIdx] = useState(0);
+  const [editing, setEditing]   = useState(false);
+  const [editedText, setEditedText] = useState('');
   const [copied, setCopied]         = useState(false);
   const [genError, setGenError]     = useState('');
   const [privateFb, setPrivateFb]   = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted]   = useState(false);
   const [visible, setVisible]       = useState(true);
+
+  const currentDraft = drafts[draftIdx] ?? null;
+  const reviewText   = editing ? editedText : (currentDraft?.text ?? '');
+  const reviewId     = currentDraft?.reviewId ?? null;
 
   const lang  = business?.language  ?? 'en';
   const brand = business?.brandColor ?? '#6E5BFF';
@@ -208,16 +219,18 @@ export default function FunnelFlow({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* handle star selection — calls real AI endpoint */
+  /* handle star selection — fetches 2 drafts, shows the first */
   async function handleStar(stars: number) {
     setRating(stars);
     if (stars >= (business?.minRatingForGoogle ?? 4)) {
       setGenError('');
       goTo('generating');
       try {
-        const { text, reviewId: rid } = await fetchReview(token, stars);
-        setReviewText(text);
-        setReviewId(rid);
+        const fetched = await fetchDrafts(token, stars);
+        setDrafts(fetched);
+        setDraftIdx(0);
+        setEditing(false);
+        setEditedText(fetched[0]?.text ?? '');
         track('generate');
         goTo('review');
       } catch {
@@ -229,29 +242,21 @@ export default function FunnelFlow({
     }
   }
 
-  /* refresh draft — calls AI again for a new variation */
-  async function handleRefresh() {
+  /* refresh — show the pre-generated 2nd draft instantly (no API call) */
+  function handleRefresh() {
     setCopied(false);
     setEditing(false);
-    setGenError('');
-    goTo('generating');
-    try {
-      const { text, reviewId: rid } = await fetchReview(token, rating);
-      setReviewText(text);
-      setReviewId(rid);
-      track('refresh');
-      goTo('review');
-    } catch {
-      setGenError('Could not refresh. Please try again.');
-      goTo('review');
-    }
+    const next = drafts.length > 1 ? (draftIdx + 1) % drafts.length : draftIdx;
+    setDraftIdx(next);
+    setEditedText(drafts[next]?.text ?? '');
+    track('refresh', { draft_index: next });
   }
 
-  /* copy text then always show the platform button(s) — no silent auto-redirect */
+  /* copy text — tracks which draft index was used */
   async function handleCopy() {
     try { await navigator.clipboard.writeText(reviewText); } catch {}
     setCopied(true);
-    track('copy');
+    track('copy', { draft_index: draftIdx });
     if (reviewId) void updateReviewStatus(reviewId, 'copy');
   }
 
@@ -386,8 +391,8 @@ export default function FunnelFlow({
                 {editing ? (
                   <textarea
                     className="rv-review-textarea"
-                    value={reviewText}
-                    onChange={(e) => setReviewText(e.target.value)}
+                    value={editedText}
+                    onChange={(e) => setEditedText(e.target.value)}
                     autoFocus
                   />
                 ) : (
@@ -402,7 +407,7 @@ export default function FunnelFlow({
                   </svg>
                   {t(lang, 'refresh')}
                 </button>
-                <button className="rv-btn rv-btn-ghost" onClick={() => setEditing(e => !e)}>
+                <button className="rv-btn rv-btn-ghost" onClick={() => { if (!editing) setEditedText(currentDraft?.text ?? ''); setEditing(e => !e); }}>
                   <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
                     <path d="M10 2l3 3-8 8H2v-3l8-8z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
                   </svg>
