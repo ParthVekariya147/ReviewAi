@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import useSWR from 'swr';
-import { Icon, Card, CardHeader, Btn, Badge, Progress, StarRating, Field, Input, Select } from '../ui';
+import { Icon, Card, CardHeader, Btn, Progress, StarRating, Field, Input, Select } from '../ui';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 

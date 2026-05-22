@@ -4,7 +4,7 @@ import { useState } from 'react';
 import useSWR from 'swr';
 import type { IconName } from '../ui';
 import {
-  Icon, Card, CardHeader, Btn, Badge, Stat, Chart,
+  Icon, Card, CardHeader, Btn, Stat, Chart,
   Ring, Heatmap, Progress, Counter, Select, fmt, pct,
 } from '../ui';
 
@@ -77,7 +77,7 @@ export default function ScreenAnalytics() {
   const [days, setDays] = useState<'7d' | '30d' | '90d'>('30d');
   const daysNum = days === '7d' ? 7 : days === '90d' ? 90 : 30;
 
-  const { data, isLoading, error } = useSWR<SummaryData>(
+  const { data, isLoading } = useSWR<SummaryData>(
     `/api/analytics/summary?days=${daysNum}`,
     fetcher,
     { refreshInterval: 60_000, revalidateOnFocus: true },

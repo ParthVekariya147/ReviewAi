@@ -104,10 +104,8 @@ export default function ScreenUsage() {
 
   const { limits, used, daily_series, by_campaign } = data;
 
-  const reviewsPct    = usagePct(used.reviews,   limits.reviews);
-  const scansPct      = usagePct(used.scans,      limits.scans);
-  const campaignsPct  = usagePct(used.campaigns,  limits.campaigns);
-  const overallPct    = reviewsPct; // reviews is the primary quota signal
+  const reviewsPct = usagePct(used.reviews, limits.reviews);
+  const overallPct = reviewsPct; // reviews is the primary quota signal
 
   // Period label for header
   const periodLabel = new Date(data.period_end).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });

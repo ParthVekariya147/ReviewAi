@@ -99,6 +99,7 @@ async function upsertBusinessDirect(
   let error;
 
   if (existing) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { owner_id: _omit, ...updatePayload } = payload;
     ({ data, error } = await supabase
       .from('businesses')

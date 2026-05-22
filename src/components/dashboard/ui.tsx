@@ -462,38 +462,17 @@ export const Chart = ({ data, keys = ['y'], colors = ['primary'], height = 220, 
   const innerH = height - padT - padB;
   const hasData = data.length > 0;
 
-  if (data.length === 0) {
-    return (
-      <div ref={ref} className="lp-chart">
-        <svg width={w} height={height}>
-          <text x={w / 2} y={height / 2} textAnchor="middle" dominantBaseline="middle" className="lp-axis">No data yet</text>
-        </svg>
-      </div>
-    );
-  }
-
   const allVals = data.flatMap(d => keys.map(k => (d[k] as number) || 0));
   const maxVal = allVals.length > 0 ? Math.max(1, Math.max(...allVals) * 1.15) : 1;
   const range = maxVal;
 
   const xFor = (i: number) => padL + (innerW * i) / (data.length - 1 || 1);
   const yFor = (v: number) => padT + innerH - (v / range) * innerH;
-
   const ticks = Array.from({ length: yTicks + 1 }, (_, i) => (maxVal * i) / yTicks);
 
   const [hover, setHover] = useState<number | null>(null);
-  const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!hasData) {
-      setHover(null);
-      return;
-    }
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left - padL;
-    const idx = Math.round((x / innerW) * (data.length - 1));
-    setHover(idx >= 0 && idx < data.length ? idx : null);
-  };
-
   const [t, setT] = useState(animate ? 0 : 1);
+
   useEffect(() => {
     if (!animate) return;
     setT(0);
@@ -507,6 +486,23 @@ export const Chart = ({ data, keys = ['y'], colors = ['primary'], height = 220, 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [data.length, kind, keys.join(','), animate]);
+
+  const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left - padL;
+    const idx = Math.round((x / innerW) * (data.length - 1));
+    setHover(idx >= 0 && idx < data.length ? idx : null);
+  };
+
+  if (data.length === 0) {
+    return (
+      <div ref={ref} className="lp-chart">
+        <svg width={w} height={height}>
+          <text x={w / 2} y={height / 2} textAnchor="middle" dominantBaseline="middle" className="lp-axis">No data yet</text>
+        </svg>
+      </div>
+    );
+  }
 
   return (
     <div ref={ref} className="lp-chart" onMouseLeave={() => setHover(null)} onMouseMove={onMove}>

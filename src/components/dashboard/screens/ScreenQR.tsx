@@ -5,7 +5,7 @@ import useSWR from 'swr';
 import type { IconName } from '../ui';
 import {
   Icon, Card, CardHeader, Btn, Badge, Counter,
-  Switch, QRCanvas, fmt, pct,
+  Switch, QRCanvas, fmt,
 } from '../ui';
 
 const fetcher = (url: string) =>
@@ -115,7 +115,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
       }} onClick={e => e.stopPropagation()}>
         <h2 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700 }}>New QR campaign</h2>
         <p style={{ margin: '0 0 20px', fontSize: 13, color: 'var(--lp-fg-muted)' }}>
-          Give it a descriptive name — e.g. "Front Counter", "Table Tents".
+          Give it a descriptive name — e.g. &quot;Front Counter&quot;, &quot;Table Tents&quot;.
         </p>
         <form onSubmit={submit}>
           <input

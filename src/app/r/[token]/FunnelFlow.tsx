@@ -143,8 +143,8 @@ function StarIcon({ filled, color }: { filled: boolean; color: string }) {
     <svg className={`rv-star-svg${filled ? ' active' : ''}`} viewBox="0 0 48 48" fill="none">
       <path
         d="M24 4l5.09 10.26L41 15.27l-8.5 8.27 2.01 11.72L24 30l-10.51 5.26 2.01-11.72L7 15.27l11.91-1.01L24 4z"
-        fill={filled ? '#FBBF24' : '#E5E7EB'}
-        stroke={filled ? '#F59E0B' : '#D1D5DB'}
+        fill={filled ? color : '#E5E7EB'}
+        stroke={filled ? color : '#D1D5DB'}
         strokeWidth="1.5"
         strokeLinejoin="round"
       />

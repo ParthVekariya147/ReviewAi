@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { IconName } from '../ui';
 import {
   Icon, Card, CardHeader, Btn, Badge, Stat, Chart,
-  Sparkline, Progress, Counter, Select, fmt, pct,
+  Counter, Select, fmt,
 } from '../ui';
 
 const BASE = '/app/business_dashboard';
@@ -51,17 +51,6 @@ function PageHeader({ title, sub, actions }: { title: string; sub?: string; acti
   );
 }
 
-function UsageRow({ label, value, max, tone }: { label: string; value: number; max: number; tone: string }) {
-  return (
-    <div>
-      <div className="lp-flex lp-flex-between" style={{ marginBottom: 6, fontSize: 12.5 }}>
-        <span style={{ color: 'var(--lp-fg-muted)' }}>{label}</span>
-        <span><b>{fmt(value)}</b> <span className="lp-muted">/ {max === -1 ? '∞' : fmt(max)}</span></span>
-      </div>
-      <Progress value={max === -1 ? 0 : value} max={max === -1 ? 1 : max} tone={tone} />
-    </div>
-  );
-}
 
 function QuickAction({ icon, title, sub, onClick, accent = 'primary' }: {
   icon: IconName; title: string; sub: string; onClick: () => void; accent?: string;

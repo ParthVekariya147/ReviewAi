@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
-import { Icon, Card, CardHeader, Btn, Badge, Stat, Chart, Field, Input, Select, Switch, Tabs, StarRating, Counter, dayLabels, pct } from '../ui';
+import { Icon, Card, CardHeader, Btn, Badge, Stat, Chart, Field, Input, Select, Switch, Tabs, StarRating, Counter, pct } from '../ui';
 import { PLATFORM_DEFS, type ReviewPlatformEntry } from '@/lib/platforms';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
@@ -166,7 +166,7 @@ function FunnelMockup({ brand, step = 'landing', funnel = {} }: {
 
 // ── main component ────────────────────────────────────────────
 
-export default function ScreenFunnel({ initialBusiness, user: _user }: Props) {
+export default function ScreenFunnel({ initialBusiness }: Props) {
   const [tab,        setTab]        = useState('design');
   const [simStep,    setSimStep]    = useState('landing');
   const [simRunning, setSimRunning] = useState(false);
