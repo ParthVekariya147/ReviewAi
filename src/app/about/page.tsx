@@ -4,8 +4,9 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 
 export const metadata: Metadata = {
-  title: "About — Reevo",
-  description: "Building the simplest path from great service to great reviews.",
+  title: "About",
+  description: "Building the simplest path from great service to great reviews. Reevo helps local businesses turn happy customers into authentic 5-star Google reviews.",
+  alternates: { canonical: "/about" },
 };
 
 const STATS = [
@@ -197,7 +198,7 @@ export default function AboutPage() {
         <section className="section" style={{ background: "var(--bg-soft)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
           <div className="container" style={{ textAlign: "center" }}>
             <span className="eyebrow"><span className="dot" /> Backed by</span>
-            <h3 className="h2" style={{ marginTop: 18, fontSize: "clamp(28px, 3vw, 36px)" }}>The people who fund local-business software.</h3>
+            <h2 className="h2" style={{ marginTop: 18, fontSize: "clamp(28px, 3vw, 36px)" }}>The people who fund local-business software.</h2>
             <div className="logos-strip" style={{ marginTop: 40 }}>
               {INVESTORS.map((n) => (
                 <div key={n}>{n}</div>

@@ -87,8 +87,8 @@ const MobileFunnel = ({ business = "Maison Café", googleHref = "https://maps.go
         <div style={{ height: 38, display: "flex", justifyContent: "space-between", alignItems: "flex-end", padding: "0 22px 4px", fontSize: 12, fontWeight: 600, color: "#111" }}>
           <span>9:41</span>
           <div className="row" style={{ gap: 4 }}>
-            <svg width="14" height="10" viewBox="0 0 14 10" fill="none"><path d="M1 8h2v1H1zM4 6h2v3H4zM7 4h2v5H7zM10 2h2v7h-2z" fill="#111"/></svg>
-            <svg width="18" height="10" viewBox="0 0 18 10" fill="none"><rect x="0.5" y="2" width="14" height="6" rx="1.5" stroke="#111"/><rect x="2" y="3.5" width="11" height="3" fill="#111"/><rect x="15" y="4" width="1.5" height="2" fill="#111"/></svg>
+            <svg width="14" height="10" viewBox="0 0 14 10" fill="none"><path d="M1 8h2v1H1zM4 6h2v3H4zM7 4h2v5H7zM10 2h2v7h-2z" fill="#111" /></svg>
+            <svg width="18" height="10" viewBox="0 0 18 10" fill="none"><rect x="0.5" y="2" width="14" height="6" rx="1.5" stroke="#111" /><rect x="2" y="3.5" width="11" height="3" fill="#111" /><rect x="15" y="4" width="1.5" height="2" fill="#111" /></svg>
           </div>
         </div>
 
@@ -124,7 +124,7 @@ const MobileFunnel = ({ business = "Maison Café", googleHref = "https://maps.go
                   <p style={{ fontSize: 13, color: "#777", margin: "8px 0 0" }}>Tap a star to continue</p>
                 </div>
                 <div className="row" style={{ justifyContent: "center", gap: 4 }}>
-                  {[1,2,3,4,5].map(i => {
+                  {[1, 2, 3, 4, 5].map(i => {
                     const active = i <= (hoverRating || rating);
                     return (
                       <button key={i}
@@ -202,10 +202,10 @@ const MobileFunnel = ({ business = "Maison Café", googleHref = "https://maps.go
             <div className="fade-up" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, textAlign: "center" }}>
               <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#F5F6FA", display: "grid", placeItems: "center", position: "relative" }}>
                 <svg width="28" height="28" viewBox="0 0 24 24">
-                  <path d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4c-.2 1.3-1 2.4-2 3.1v2.6h3.3c1.9-1.8 3-4.4 3-7.5z" fill="#4285F4"/>
-                  <path d="M12 22c2.7 0 5-.9 6.7-2.4l-3.3-2.6c-.9.6-2 1-3.4 1-2.6 0-4.9-1.8-5.7-4.2H3v2.7C4.7 19.8 8.1 22 12 22z" fill="#34A853"/>
-                  <path d="M6.3 13.8c-.2-.6-.3-1.2-.3-1.8s.1-1.2.3-1.8V7.5H3C2.4 8.9 2 10.4 2 12s.4 3.1 1 4.5l3.3-2.7z" fill="#FBBC05"/>
-                  <path d="M12 5.8c1.5 0 2.8.5 3.8 1.5l2.9-2.9C17 2.9 14.7 2 12 2 8.1 2 4.7 4.2 3 7.5l3.3 2.7C7.1 7.6 9.4 5.8 12 5.8z" fill="#EA4335"/>
+                  <path d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4c-.2 1.3-1 2.4-2 3.1v2.6h3.3c1.9-1.8 3-4.4 3-7.5z" fill="#4285F4" />
+                  <path d="M12 22c2.7 0 5-.9 6.7-2.4l-3.3-2.6c-.9.6-2 1-3.4 1-2.6 0-4.9-1.8-5.7-4.2H3v2.7C4.7 19.8 8.1 22 12 22z" fill="#34A853" />
+                  <path d="M6.3 13.8c-.2-.6-.3-1.2-.3-1.8s.1-1.2.3-1.8V7.5H3C2.4 8.9 2 10.4 2 12s.4 3.1 1 4.5l3.3-2.7z" fill="#FBBC05" />
+                  <path d="M12 5.8c1.5 0 2.8.5 3.8 1.5l2.9-2.9C17 2.9 14.7 2 12 2 8.1 2 4.7 4.2 3 7.5l3.3 2.7C7.1 7.6 9.4 5.8 12 5.8z" fill="#EA4335" />
                 </svg>
               </div>
               <div>

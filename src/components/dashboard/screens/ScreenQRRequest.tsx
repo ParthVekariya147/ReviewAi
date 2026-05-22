@@ -1,7 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import useSWR from 'swr';
 import { Icon, Card, CardHeader, Btn, Field, Input, Select, Switch, Segmented, QRCanvas } from '../ui';
+
+const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 function PageHeader({ title, sub, actions }: { title: string; sub?: string; actions?: React.ReactNode }) {
   return (
@@ -16,7 +19,12 @@ function PageHeader({ title, sub, actions }: { title: string; sub?: string; acti
 }
 
 export default function ScreenQRRequest() {
-  const [name, setName] = useState('Sidewalk Sign · NW Portland');
+  const { data: bizData } = useSWR<{ business: { name: string; logo_initials: string; brand_color: string } | null }>(
+    '/api/businesses', fetcher
+  );
+  const biz = bizData?.business;
+
+  const [name, setName] = useState('Sidewalk Sign');
   const [url, setUrl] = useState('reevo.io/r/sw-1q4');
   const [color, setColor] = useState('#6366F1');
   const [bg, setBg] = useState('#FFFFFF');
@@ -140,12 +148,14 @@ export default function ScreenQRRequest() {
           <Card>
             <CardHeader title="Live preview" subtitle="Updates as you change settings"/>
             <div className="lp-print-preview" style={{ background: bg }}>
-              <div className="lp-print-logo" style={{ background: color, color: '#fff' }}>O&P</div>
+              <div className="lp-print-logo" style={{ background: biz?.brand_color ?? color, color: '#fff' }}>
+                {biz?.logo_initials ?? '??'}
+              </div>
               <div className="lp-print-h" style={{ color }}>Loved your visit?</div>
               <div className="lp-print-sub">Scan to leave a quick review</div>
               <QRCanvas value={fullUrl} size={size} color={color} bg={bg} radius={16}/>
               <div className="lp-print-foot">
-                <div className="lp-print-biz">Olive & Pine Bistro</div>
+                <div className="lp-print-biz">{biz?.name ?? 'Your Business'}</div>
                 <div className="lp-print-url">{url}</div>
               </div>
               <div className="lp-print-stars">

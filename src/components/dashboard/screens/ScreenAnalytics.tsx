@@ -109,7 +109,7 @@ export default function ScreenAnalytics() {
 
   // Conversion rate
   const convRate = scansTotal > 0 ? Math.round((redirectsTotal / scansTotal) * 1000) / 10 : 0;
-  const bestConvRate = Math.min(convRate + 10, 99); // placeholder until per-campaign data lands
+  const bestConvRate = convRate;
 
   // Device breakdown
   const deviceEntries = Object.entries(data?.by_device ?? {});

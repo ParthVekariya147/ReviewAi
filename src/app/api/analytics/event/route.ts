@@ -39,14 +39,29 @@ export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
 
-    /* resolve qr_id + business_id from token */
+    /* resolve qr_id + business_id from token — only live campaigns */
     const { data: qr } = await supabase
       .from('qr_codes')
       .select('id, business_id')
       .eq('token', token)
+      .eq('status', 'live')
       .single();
 
-    if (!qr) return NextResponse.json({ ok: false, reason: 'unknown token' });
+    if (!qr) return NextResponse.json({ ok: false, reason: 'unknown token' }, { status: 404 });
+
+    /* sanitize meta: max 2KB, max 20 keys, primitive values only */
+    function sanitizeMeta(raw: unknown): Record<string, string | number | boolean> | null {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+      const out: Record<string, string | number | boolean> = {};
+      for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+        if (typeof k !== 'string' || k.length > 64) continue;
+        if (typeof v === 'string') out[k] = v.slice(0, 256);
+        else if (typeof v === 'number' || typeof v === 'boolean') out[k] = v;
+        if (Object.keys(out).length >= 20) break;
+      }
+      if (JSON.stringify(out).length > 2048) return null;
+      return out;
+    }
 
     /* insert analytics event */
     await supabase.from('analytics_events').insert({
@@ -55,7 +70,7 @@ export async function POST(req: NextRequest) {
       event_type:  eventType,
       device,
       country,
-      meta:        body.meta ?? null,
+      meta:        sanitizeMeta(body.meta),
     });
 
     /* also insert a qr_scan row for the 'scan' event for quick count queries */

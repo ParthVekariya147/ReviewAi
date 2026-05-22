@@ -26,6 +26,8 @@ type BusinessPayload = {
   language: string;
   review_platforms: { id: string; url: string; enabled: boolean }[];
   onboarding_complete: boolean;
+  business_type: string | null;
+  review_keywords: string | null;
 };
 
 function isMissingUpsertRpcError(error: ApiError) {
@@ -48,6 +50,8 @@ function buildPayload(body: Record<string, unknown> | null, userId: string): Bus
     language:              sanitizeLang(body?.language),
     review_platforms:      sanitizePlatforms(body?.review_platforms),
     onboarding_complete:   Boolean(body?.onboarding_complete),
+    business_type:         sanitizeString(body?.business_type, 60) || null,
+    review_keywords:       sanitizeString(body?.review_keywords, 300) || null,
   };
 }
 
@@ -66,6 +70,8 @@ async function upsertBusinessViaRpc(
     p_language: payload.language,
     p_review_platforms: payload.review_platforms,
     p_onboarding_complete: payload.onboarding_complete,
+    p_business_type: payload.business_type,
+    p_review_keywords: payload.review_keywords,
   });
 
   return {
@@ -171,14 +177,16 @@ function attachBusinessCookie(response: NextResponse, businessId: unknown) {
 /* GET /api/businesses */
 export async function GET() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { business, error } = await getCurrentBusiness(supabase, user.id);
   if (error) {
-    return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
+    console.error('[GET /api/businesses]', error);
+    return NextResponse.json({ error: 'Failed to load business' }, { status: 500 });
   }
 
+  // LOW-1: omit ownerEmail from response — fetch from supabase.auth on client if needed
   return NextResponse.json({ business });
 }
 
@@ -215,7 +223,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const response = NextResponse.json({ business: result.business }, { status: 201 });
+  const response = NextResponse.json({ business: result.business }, { status: 200 });
   attachBusinessCookie(response, result.business?.id);
   return response;
 }
@@ -239,6 +247,8 @@ export async function PATCH(req: NextRequest) {
   if ('language'              in body) updates.language              = sanitizeLang(body.language);
   if ('review_platforms'      in body) updates.review_platforms      = sanitizePlatforms(body.review_platforms);
   if ('onboarding_complete'   in body) updates.onboarding_complete   = Boolean(body.onboarding_complete);
+  if ('business_type'         in body) updates.business_type         = sanitizeString(body.business_type, 60) || null;
+  if ('review_keywords'       in body) updates.review_keywords       = sanitizeString(body.review_keywords, 300) || null;
 
   for (const key of Object.keys(updates)) {
     if (updates[key] === undefined) delete updates[key];
@@ -287,6 +297,12 @@ export async function PATCH(req: NextRequest) {
     onboarding_complete: typeof updates.onboarding_complete === 'boolean'
       ? updates.onboarding_complete
       : Boolean(current.business.onboarding_complete),
+    business_type: 'business_type' in updates
+      ? (updates.business_type as string | null)
+      : ((current.business.business_type as string | null) ?? null),
+    review_keywords: 'review_keywords' in updates
+      ? (updates.review_keywords as string | null)
+      : ((current.business.review_keywords as string | null) ?? null),
   };
 
   let result = current.schema === 'legacy'

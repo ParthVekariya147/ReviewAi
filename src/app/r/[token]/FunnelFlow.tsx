@@ -101,15 +101,40 @@ function platformMeta(id: string) {
   return PLATFORM_META[id] ?? { name: id, emoji: '⭐', color: '#6E5BFF' };
 }
 
-/* ── Mock review drafts (replaced by Gemini in Module 6) ─ */
+/* ── AI review generation ─────────────────────────────── */
 
-const DRAFT_POOL = [
-  "Absolutely loved our visit here. The food was outstanding — every dish came out perfectly seasoned and beautifully presented. The staff genuinely made us feel welcome. We'll be back soon!",
-  "One of the best dining experiences we've had in a long time. The atmosphere was warm and the service impeccable. Can't recommend this place highly enough to anyone in the area.",
-  "Amazing from start to finish. Great food, great vibes, and the team clearly takes pride in what they do. A hidden gem that deserves all the recognition it can get.",
-  "Came here on a recommendation and I'm so glad we did. Every single thing we ordered was delicious and the staff was attentive without being intrusive. This is now our go-to spot.",
-  "The quality here is consistently excellent. The menu has something for everyone and the kitchen never disappoints. Pair that with fantastic service and you have a near-perfect evening out.",
-];
+async function fetchReview(token: string, rating: number): Promise<{ text: string; reviewId: string | null }> {
+  const res = await fetch('/api/funnel/generate', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ token, rating }),
+  });
+  if (!res.ok) throw new Error(`Generation failed: ${res.status}`);
+  const json = await res.json();
+  return { text: json.text as string, reviewId: json.review_id as string | null };
+}
+
+async function updateReviewStatus(
+  reviewId: string,
+  action: 'copy' | 'redirect',
+  platform?: string,
+): Promise<void> {
+  await fetch('/api/funnel/status', {
+    method:    'PATCH',
+    headers:   { 'Content-Type': 'application/json' },
+    body:      JSON.stringify({ review_id: reviewId, action, platform }),
+    keepalive: true,
+  }).catch(() => {});
+}
+
+async function submitPrivateFeedback(token: string, rating: number, feedback: string): Promise<void> {
+  await fetch('/api/funnel/private', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ token, rating, feedback }),
+    keepalive: true,
+  });
+}
 
 /* ── Star SVG ─────────────────────────────────────────── */
 
@@ -138,17 +163,18 @@ export default function FunnelFlow({
   token: string;
   valid: boolean;
 }) {
-  const [step, setStep]                   = useState<Step>('landing');
-  const [rating, setRating]               = useState(0);
-  const [hovered, setHovered]             = useState(0);
-  const [draftIndex, setDraftIndex]       = useState(0);
-  const [reviewText, setReviewText]       = useState('');
-  const [editing, setEditing]             = useState(false);
-  const [copied, setCopied]               = useState(false);
-  const [privateFb, setPrivateFb]         = useState('');
-  const [submitting, setSubmitting]       = useState(false);
-  const [submitted, setSubmitted]         = useState(false);
-  const [visible, setVisible]             = useState(true);
+  const [step, setStep]       = useState<Step>('landing');
+  const [rating, setRating]   = useState(0);
+  const [hovered, setHovered] = useState(0);
+  const [reviewText, setReviewText] = useState('');
+  const [reviewId, setReviewId]     = useState<string | null>(null);
+  const [editing, setEditing]       = useState(false);
+  const [copied, setCopied]         = useState(false);
+  const [genError, setGenError]     = useState('');
+  const [privateFb, setPrivateFb]   = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted]   = useState(false);
+  const [visible, setVisible]       = useState(true);
 
   const lang  = business?.language  ?? 'en';
   const brand = business?.brandColor ?? '#6E5BFF';
@@ -182,61 +208,68 @@ export default function FunnelFlow({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* handle star selection */
-  function handleStar(stars: number) {
+  /* handle star selection — calls real AI endpoint */
+  async function handleStar(stars: number) {
     setRating(stars);
     if (stars >= (business?.minRatingForGoogle ?? 4)) {
+      setGenError('');
       goTo('generating');
-      // Simulate Gemini latency (real call wired in Module 6)
-      setTimeout(() => {
-        setReviewText(DRAFT_POOL[draftIndex % DRAFT_POOL.length]);
+      try {
+        const { text, reviewId: rid } = await fetchReview(token, stars);
+        setReviewText(text);
+        setReviewId(rid);
         track('generate');
         goTo('review');
-      }, 2400);
+      } catch {
+        setGenError('Could not generate a draft. Please try again.');
+        goTo('rating');
+      }
     } else {
       setTimeout(() => goTo('private'), 350);
     }
   }
 
-  /* refresh draft */
-  function handleRefresh() {
-    const next = (draftIndex + 1) % DRAFT_POOL.length;
-    setDraftIndex(next);
-    setReviewText(DRAFT_POOL[next]);
+  /* refresh draft — calls AI again for a new variation */
+  async function handleRefresh() {
     setCopied(false);
     setEditing(false);
-    track('refresh');
+    setGenError('');
+    goTo('generating');
+    try {
+      const { text, reviewId: rid } = await fetchReview(token, rating);
+      setReviewText(text);
+      setReviewId(rid);
+      track('refresh');
+      goTo('review');
+    } catch {
+      setGenError('Could not refresh. Please try again.');
+      goTo('review');
+    }
   }
 
-  /* copy text, then either auto-redirect (single platform) or show picker (multi) */
+  /* copy text then always show the platform button(s) — no silent auto-redirect */
   async function handleCopy() {
     try { await navigator.clipboard.writeText(reviewText); } catch {}
     setCopied(true);
     track('copy');
-    if (!isMultiPlatform) {
-      setTimeout(() => {
-        const p = resolvedPlatforms[0];
-        if (p?.url) window.open(p.url, '_blank');
-        track('redirect', { platform: p?.id ?? 'none' });
-        goTo('success');
-      }, 900);
-    }
+    if (reviewId) void updateReviewStatus(reviewId, 'copy');
   }
 
   function openPlatform(url: string, id: string) {
     if (url) window.open(url, '_blank');
     track('redirect', { platform: id });
+    if (reviewId) void updateReviewStatus(reviewId, 'redirect', id);
     goTo('success');
   }
 
-  /* private feedback submit */
-  function handlePrivateSubmit() {
+  /* private feedback submit — saves to DB and fires analytics */
+  async function handlePrivateSubmit() {
     if (!privateFb.trim()) return;
     setSubmitting(true);
     track('private_feedback', { rating, feedback: privateFb });
-    // TODO: POST /api/reviews/private { token, rating, feedback }
-    setTimeout(() => { setSubmitted(true); }, 900);
-    setTimeout(() => goTo('success'), 1600);
+    await submitPrivateFeedback(token, rating, privateFb).catch(() => {/* fail silently */});
+    setSubmitted(true);
+    setTimeout(() => goTo('success'), 700);
   }
 
   /* Redirect from success if Google tab was opened */
@@ -326,6 +359,9 @@ export default function FunnelFlow({
                     ? t(lang, 'starLabels').split(',')[rating - 1] ?? ''
                     : ''}
               </div>
+              {genError && (
+                <p style={{ color: '#ef4444', fontSize: 13, marginTop: 10, textAlign: 'center' }}>{genError}</p>
+              )}
             </>
           )}
 
@@ -374,46 +410,26 @@ export default function FunnelFlow({
                 </button>
               </div>
 
-              {/* Single platform: one-click copy + redirect */}
-              {!isMultiPlatform && (
-                <button
-                  className={`rv-btn ${copied ? 'rv-btn-success' : 'rv-btn-primary'}`}
-                  onClick={handleCopy}
-                  disabled={copied}
-                >
-                  {copied ? (
-                    <>
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M3 8l4 4 6-7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                      {t(lang, 'copied')}
-                    </>
-                  ) : (
-                    <>
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <rect x="5" y="5" width="9" height="9" rx="2" stroke="white" strokeWidth="1.5"/>
-                        <path d="M3 11V3h8" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-                      </svg>
-                      {t(lang, 'copyGoSingle')} {platformMeta(resolvedPlatforms[0]?.id ?? 'google').name}
-                    </>
-                  )}
-                </button>
-              )}
-
-              {/* Multi platform: copy first, then show platform picker */}
-              {isMultiPlatform && !copied && (
+              {/* Step 1: Copy button — shown until the user copies */}
+              {!copied && (
                 <button className="rv-btn rv-btn-primary" onClick={handleCopy}>
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                     <rect x="5" y="5" width="9" height="9" rx="2" stroke="white" strokeWidth="1.5"/>
                     <path d="M3 11V3h8" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
                   </svg>
-                  {t(lang, 'copyGo')}
+                  {isMultiPlatform
+                    ? t(lang, 'copyGo')
+                    : `${t(lang, 'copyGoSingle')} ${platformMeta(resolvedPlatforms[0]?.id ?? 'google').name}`}
                 </button>
               )}
 
-              {isMultiPlatform && copied && (
+              {/* Step 2: After copy — show "Copied!" + platform buttons */}
+              {copied && (
                 <div style={{ marginTop: 4 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontSize: 13, color: '#16a34a', fontWeight: 600 }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    gap: 7, marginBottom: 14, fontSize: 13, color: '#16a34a', fontWeight: 600,
+                  }}>
                     <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
                       <path d="M3 7.5l3.5 3.5 5.5-6" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
@@ -438,7 +454,7 @@ export default function FunnelFlow({
                           }}
                         >
                           <span style={{ fontSize: 18, lineHeight: 1 }}>{meta.emoji}</span>
-                          {meta.name}
+                          Open {meta.name}
                         </button>
                       );
                     })}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import { Icon, Card, CardHeader, Btn, Badge, Avatar, Field, Input, Select, Switch, StarRating } from '../ui';
 
 // ── types ─────────────────────────────────────────────────────
@@ -86,9 +87,17 @@ const LANGUAGES = [
 
 // ── main component ────────────────────────────────────────────
 
+type PwdState = 'idle' | 'saving' | 'saved' | 'error';
+
 export default function ScreenSettings({ initialBusiness, user }: Props) {
   const [section,   setSection]   = useState('profile');
   const [saveState, setSaveState] = useState<SaveState>('idle');
+
+  // Password change state
+  const [pwdCurrent, setPwdCurrent] = useState('');
+  const [pwdNew,     setPwdNew]     = useState('');
+  const [pwdState,   setPwdState]   = useState<PwdState>('idle');
+  const [pwdError,   setPwdError]   = useState('');
 
   // Single form state covering all editable business fields
   const [form, setForm] = useState({
@@ -111,6 +120,34 @@ export default function ScreenSettings({ initialBusiness, user }: Props) {
     const ok = await patchBusiness(form);
     setSaveState(ok ? 'saved' : 'error');
     if (ok) setTimeout(() => setSaveState('idle'), 2500);
+  }
+
+  async function handlePasswordChange() {
+    setPwdError('');
+    if (!pwdCurrent) { setPwdError('Enter your current password.'); return; }
+    if (pwdNew.length < 8) { setPwdError('New password must be at least 8 characters.'); return; }
+    setPwdState('saving');
+    const supabase = createClient();
+    // Verify current password by re-signing in
+    const { error: signInErr } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: pwdCurrent,
+    });
+    if (signInErr) {
+      setPwdError('Current password is incorrect.');
+      setPwdState('error');
+      return;
+    }
+    const { error: updateErr } = await supabase.auth.updateUser({ password: pwdNew });
+    if (updateErr) {
+      setPwdError(updateErr.message);
+      setPwdState('error');
+      return;
+    }
+    setPwdState('saved');
+    setPwdCurrent('');
+    setPwdNew('');
+    setTimeout(() => setPwdState('idle'), 3000);
   }
 
   const saveLabel =
@@ -204,7 +241,7 @@ export default function ScreenSettings({ initialBusiness, user }: Props) {
               <Field label="Language">
                 <Select value={form.language} options={LANGUAGES} onChange={v => set('language', v)} />
               </Field>
-              <Field label="Star threshold for Google redirect" hint="Ratings at or above this score redirect to Google">
+              <Field label="Star threshold for Google redirect" hint="Ratings at or above this score redirect to Google — lower ratings are captured privately">
                 <div className="lp-flex" style={{ gap: 10, alignItems: 'center', marginTop: 4 }}>
                   <StarRating value={form.min_rating_for_google} readonly />
                   <Select
@@ -218,9 +255,6 @@ export default function ScreenSettings({ initialBusiness, user }: Props) {
                   />
                 </div>
               </Field>
-              <Switch label="Capture low ratings privately" sub="Don't redirect below threshold to Google" checked={true} onChange={() => {}} />
-              <Switch label="Disclose AI assistance"        sub="Show 'AI-assisted' label on funnel"     checked={true} onChange={() => {}} />
-              <Switch label="Throttle repeat scans"         sub="One review per device per 30 days"      checked={true} onChange={() => {}} />
             </Card>
           )}
 
@@ -273,17 +307,44 @@ export default function ScreenSettings({ initialBusiness, user }: Props) {
           {section === 'security' && (
             <>
               <Card>
-                <CardHeader title="Password" />
+                <CardHeader title="Password" subtitle="Leave blank if you signed up with Google" />
                 <div className="lp-grid lp-grid-2" style={{ gap: 14 }}>
-                  <Field label="Current password"><Input type="password" placeholder="Enter current password" icon="lock" /></Field>
-                  <Field label="New password"><Input type="password" placeholder="At least 12 characters" icon="lock" /></Field>
+                  <Field label="Current password">
+                    <Input
+                      type="password"
+                      placeholder="Enter current password"
+                      icon="lock"
+                      value={pwdCurrent}
+                      onChange={e => { setPwdCurrent(e.target.value); setPwdError(''); setPwdState('idle'); }}
+                    />
+                  </Field>
+                  <Field label="New password" hint="At least 8 characters">
+                    <Input
+                      type="password"
+                      placeholder="At least 8 characters"
+                      icon="lock"
+                      value={pwdNew}
+                      onChange={e => { setPwdNew(e.target.value); setPwdError(''); setPwdState('idle'); }}
+                    />
+                  </Field>
                 </div>
-                <Btn variant="primary" icon="check">Update password</Btn>
+                {pwdError && (
+                  <div style={{ fontSize: 12, color: 'var(--lp-danger, #ef4444)', marginTop: 6 }}>{pwdError}</div>
+                )}
+                <Btn
+                  variant="primary"
+                  icon={pwdState === 'saved' ? 'check' : 'lock'}
+                  onClick={handlePasswordChange}
+                  disabled={pwdState === 'saving'}
+                >
+                  {pwdState === 'saving' ? 'Updating…' : pwdState === 'saved' ? 'Password updated!' : 'Update password'}
+                </Btn>
               </Card>
               <Card>
-                <CardHeader title="Two-factor authentication" />
-                <Switch label="Authenticator app" sub="Use Authy, 1Password or similar" checked={false} onChange={() => {}} />
-                <Switch label="SMS verification"  sub="As backup" checked={false} onChange={() => {}} />
+                <CardHeader title="Two-factor authentication" subtitle="Coming in a future update" />
+                <div style={{ fontSize: 13, color: 'var(--lp-fg-muted)', padding: '8px 0' }}>
+                  Authenticator app and SMS verification will be available soon.
+                </div>
               </Card>
             </>
           )}
@@ -299,10 +360,11 @@ export default function ScreenSettings({ initialBusiness, user }: Props) {
 
           {section === 'billing' && (
             <Card>
-              <CardHeader title="Billing preferences" />
-              <Field label="Billing email"><Input defaultValue={user.email} icon="mail" /></Field>
-              <Field label="Receipt language"><Select value="en" options={LANGUAGES} onChange={() => {}} /></Field>
-              <Switch label="Auto-upgrade plan when at 100% quota" sub="Avoid funnel disruption — billed pro-rated" checked={false} onChange={() => {}} />
+              <CardHeader title="Billing preferences" subtitle="Billing & subscription management coming soon" />
+              <Field label="Billing email"><Input defaultValue={user.email} icon="mail" disabled /></Field>
+              <div style={{ fontSize: 13, color: 'var(--lp-fg-muted)', padding: '8px 0' }}>
+                Full subscription management, plan upgrades, and invoice history will be available in a future update.
+              </div>
             </Card>
           )}
         </div>

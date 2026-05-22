@@ -16,10 +16,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const days = Math.min(
-    Math.max(1, parseInt(req.nextUrl.searchParams.get('days') ?? '30', 10)),
-    90,
-  );
+  const rawDays = parseInt(req.nextUrl.searchParams.get('days') ?? '30', 10);
+  const days = Math.min(Math.max(1, isNaN(rawDays) ? 30 : rawDays), 90);
 
   const { business: biz, error: businessError } = await getCurrentBusiness(db as Awaited<ReturnType<typeof createClient>>, user.id);
 
@@ -37,7 +35,8 @@ export async function GET(req: NextRequest) {
   });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('[dashboard/overview] RPC error:', error);
+    return NextResponse.json({ error: 'Failed to load dashboard' }, { status: 500 });
   }
 
   return NextResponse.json(

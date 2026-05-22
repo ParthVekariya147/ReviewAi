@@ -19,6 +19,8 @@ export default async function ProfilePage() {
     min_rating_for_google: Number(currentBusiness.min_rating_for_google ?? 4),
     language: String(currentBusiness.language ?? 'en'),
     plan: String(currentBusiness.plan ?? 'free'),
+    business_type:   (currentBusiness.business_type   as string | null) ?? null,
+    review_keywords: (currentBusiness.review_keywords as string | null) ?? null,
   } : null;
 
   return (

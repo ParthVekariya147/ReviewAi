@@ -50,10 +50,19 @@ export function rateLimit(key: string, limit: number, windowMs: number): RateLim
 
 /** Extract a best-effort client IP from a Next.js Request */
 export function getClientIp(req: Request): string {
-  return (
-    req.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
-    req.headers.get('cf-connecting-ip') ??
-    req.headers.get('x-real-ip') ??
-    'unknown'
-  );
+  // Trust platform-set headers (cannot be spoofed by clients)
+  // Vercel sets x-vercel-forwarded-for from its trusted edge network
+  const vercelIp = req.headers.get('x-vercel-forwarded-for');
+  if (vercelIp) return vercelIp.split(',')[0].trim();
+
+  // Cloudflare sets cf-connecting-ip at the CDN layer
+  const cfIp = req.headers.get('cf-connecting-ip');
+  if (cfIp) return cfIp;
+
+  // x-forwarded-for is client-controlled — only use in development
+  if (process.env.NODE_ENV === 'development') {
+    return req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown';
+  }
+
+  return 'unknown';
 }

@@ -17,7 +17,9 @@ export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const page     = Math.max(1, parseInt(searchParams.get('page')     ?? '1',  10));
   const perPage  = Math.min(50, Math.max(1, parseInt(searchParams.get('per_page') ?? '25', 10)));
-  const status   = searchParams.get('status') ?? 'all';
+  const rawStatus = searchParams.get('status') ?? 'all';
+  const VALID_STATUSES = new Set(['all', 'generated', 'copied', 'redirected', 'private_feedback']);
+  const status = VALID_STATUSES.has(rawStatus) ? rawStatus : 'all';
   const days     = searchParams.get('days');
   const search   = searchParams.get('search')?.trim() ?? '';
 
@@ -37,8 +39,13 @@ export async function GET(req: NextRequest) {
     .eq('business_id', businessId)
     .order('created_at', { ascending: false });
 
-  if (status !== 'all') {
-    query = query.eq('status', status);
+  if (status === 'private_feedback') {
+    query = query.eq('status', 'private_feedback');
+  } else if (status !== 'all') {
+    query = query.eq('status', status).neq('status', 'private_feedback');
+  } else {
+    // 'all' excludes private feedback — private feedback has its own tab
+    query = query.neq('status', 'private_feedback');
   }
 
   if (days && days !== 'all') {
@@ -61,7 +68,8 @@ export async function GET(req: NextRequest) {
   const { data: reviews, error, count } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('[reviews] DB error:', error);
+    return NextResponse.json({ error: 'Failed to load reviews' }, { status: 500 });
   }
 
   // Flatten qr_codes join into campaign_name field

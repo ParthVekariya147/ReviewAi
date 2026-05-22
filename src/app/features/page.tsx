@@ -4,8 +4,9 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 
 export const metadata: Metadata = {
-  title: "Features — Reevo",
+  title: "Features",
   description: "One platform for every part of your review pipeline — QR funnels, AI suggestions, analytics, campaign management, and custom branding.",
+  alternates: { canonical: "/features" },
 };
 
 const CheckIcon = () => (
@@ -238,7 +239,7 @@ function Deep({ flip, eyebrow, title, body, bullets, visual }: {
     }} className="deep-grid">
       <div style={{ direction: "ltr", minWidth: 0 }}>
         <span className="eyebrow"><span className="dot" /> {eyebrow}</span>
-        <h3 className="h2" style={{ marginTop: 18, fontSize: "clamp(28px, 3.2vw, 40px)" }}>{title}</h3>
+        <h2 className="h2" style={{ marginTop: 18, fontSize: "clamp(28px, 3.2vw, 40px)" }}>{title}</h2>
         <p className="lead" style={{ marginTop: 18, fontSize: 17 }}>{body}</p>
         <ul style={{ listStyle: "none", padding: 0, margin: "28px 0 0", display: "flex", flexDirection: "column", gap: 12 }}>
           {bullets.map((b) => (

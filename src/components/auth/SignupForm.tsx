@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient, supabaseConfigured } from "@/lib/supabase/client";
 import GoogleAuthButton from "./GoogleAuthButton";
@@ -29,6 +30,7 @@ interface FormState {
 }
 
 export default function SignupForm() {
+  const router = useRouter();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormState>({
     fullName: "", email: "", password: "",
@@ -38,6 +40,16 @@ export default function SignupForm() {
   const [errs, setErrs] = useState<Partial<Record<keyof FormState, string>>>({});
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        router.replace('/app/business_dashboard/onboarding');
+      }
+    });
+  }, [router]);
 
   function patch(key: keyof FormState, value: string | number) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -46,6 +58,7 @@ export default function SignupForm() {
 
   async function next() {
     const e: Partial<Record<keyof FormState, string>> = {};
+    setSubmitError(null);
 
     if (step === 0) {
       if (!form.fullName.trim()) e.fullName = "Required.";
@@ -67,7 +80,7 @@ export default function SignupForm() {
 
     // Final step — submit
     if (!supabaseConfigured) {
-      setErrs({ fullName: "Auth not configured. Add Supabase credentials to .env.local." });
+      setSubmitError("Auth not configured. Add Supabase credentials to .env.local.");
       return;
     }
 
@@ -90,13 +103,13 @@ export default function SignupForm() {
     });
 
     if (error) {
-      setErrs({ email: error.message });
+      setSubmitError(error.message);
       setLoading(false);
       return;
     }
 
     if (data.user && data.user.identities && data.user.identities.length === 0) {
-      setErrs({ email: "An account with this email already exists." });
+      setSubmitError("already_exists");
       setLoading(false);
       return;
     }
@@ -294,6 +307,15 @@ export default function SignupForm() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Submit error (shown at bottom, visible on any step) */}
+      {submitError && (
+        <div style={{ marginTop: 16, padding: "12px 14px", background: "var(--bg-soft)", border: "1px solid var(--danger, #ef4444)", borderRadius: 10, fontSize: 13, color: "var(--danger, #ef4444)" }}>
+          {submitError === "already_exists" ? (
+            <>An account with this email already exists. <Link href="/login" style={{ color: "var(--accent)", fontWeight: 600, textDecoration: "none" }}>Sign in instead</Link></>
+          ) : submitError}
         </div>
       )}
 

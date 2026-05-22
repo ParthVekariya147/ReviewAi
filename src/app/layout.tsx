@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://reevo.io"),
   title: {
     default: "Reevo — Turn customer visits into authentic Google reviews",
     template: "%s | Reevo",
@@ -14,6 +15,19 @@ export const metadata: Metadata = {
     description:
       "The AI-powered QR funnel that converts happy customers into 5-star Google reviews in under a minute.",
     type: "website",
+    siteName: "Reevo",
+    locale: "en_US",
+    url: "https://reevo.io",
+    images: ["/og"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Reevo — Turn customer visits into authentic Google reviews",
+    description: "AI-powered QR funnels that turn visits into authentic Google reviews in under 60 seconds.",
+    images: ["/og"],
+  },
+  alternates: {
+    canonical: "/",
   },
 };
 

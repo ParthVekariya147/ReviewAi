@@ -17,6 +17,8 @@ export default async function OnboardingPage() {
     review_platforms: Array.isArray(biz.review_platforms) ? biz.review_platforms : [],
     min_rating_for_google: Number(biz.min_rating_for_google ?? 4),
     language: String(biz.language ?? 'en'),
+    business_type:    (biz.business_type as string | null) ?? null,
+    review_keywords:  (biz.review_keywords as string | null) ?? null,
   } : null;
 
   return (

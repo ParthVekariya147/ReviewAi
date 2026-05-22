@@ -17,6 +17,8 @@ const MODERN_SELECT = [
   'plan',
   'review_platforms',
   'onboarding_complete',
+  'business_type',
+  'review_keywords',
   'created_at',
   'updated_at',
 ].join(', ');
@@ -176,6 +178,12 @@ export async function getCurrentBusiness(supabase: SupabaseClient, userId: strin
   }
 
   const legacy = await getLegacyBusinessById(db as unknown as SupabaseClient, legacyId);
+
+  // CRIT-2: verify ownership — cookie value must belong to this user
+  if (legacy.business && (legacy.business as BusinessRow).owner_id !== userId) {
+    return { business: null, error: null, schema: 'legacy' as const };
+  }
+
   return {
     business: legacy.business,
     error: legacy.error,

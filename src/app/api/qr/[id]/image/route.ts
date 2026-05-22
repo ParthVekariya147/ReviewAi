@@ -45,29 +45,44 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
 
   const sp     = req.nextUrl.searchParams;
   const format = sp.get('format') === 'svg' ? 'svg' : 'png';
-  const color  = sp.get('color')  ?? '#000000';
-  const bg     = sp.get('bg')     ?? '#FFFFFF';
-  const size   = parseInt(sp.get('size') ?? '512', 10);
 
-  const qrUrl  = `${BASE_URL}/r/${code.token}`;
+  // LOW-3: validate color params and clamp size
+  const colorRe = /^#[0-9A-Fa-f]{6}$/;
+  const color   = colorRe.test(sp.get('color') ?? '') ? sp.get('color')! : '#000000';
+  const bg      = colorRe.test(sp.get('bg')    ?? '') ? sp.get('bg')!    : '#FFFFFF';
+  const rawSize = parseInt(sp.get('size') ?? '512', 10);
+  const size    = Math.min(2048, Math.max(64, isNaN(rawSize) ? 512 : rawSize));
 
-  if (format === 'svg') {
-    const svg = await generateQRSvg(qrUrl, { color, bg });
-    return new NextResponse(svg, {
+  // HIGH-5: sanitize campaign_name before using in Content-Disposition header
+  const safeName = (String(code.campaign_name ?? 'qr'))
+    .replace(/[^a-zA-Z0-9_\- ]/g, '')
+    .trim()
+    .slice(0, 100) || 'qr';
+
+  const qrUrl = `${BASE_URL}/r/${code.token}`;
+
+  try {
+    if (format === 'svg') {
+      const svg = await generateQRSvg(qrUrl, { color, bg });
+      return new NextResponse(svg, {
+        headers: {
+          'Content-Type':        'image/svg+xml',
+          'Content-Disposition': `attachment; filename="${safeName}-qr.svg"`,
+          'Cache-Control':       'no-store',
+        },
+      });
+    }
+
+    const png = await generateQRPng(qrUrl, { color, bg, size });
+    return new NextResponse(png as unknown as BodyInit, {
       headers: {
-        'Content-Type':        'image/svg+xml',
-        'Content-Disposition': `attachment; filename="${code.campaign_name}-qr.svg"`,
+        'Content-Type':        'image/png',
+        'Content-Disposition': `attachment; filename="${safeName}-qr.png"`,
         'Cache-Control':       'no-store',
       },
     });
+  } catch (e) {
+    console.error('[qr/image] generation error:', e);
+    return NextResponse.json({ error: 'QR generation failed' }, { status: 500 });
   }
-
-  const png = await generateQRPng(qrUrl, { color, bg, size });
-  return new NextResponse(png as unknown as BodyInit, {
-    headers: {
-      'Content-Type':        'image/png',
-      'Content-Disposition': `attachment; filename="${code.campaign_name}-qr.png"`,
-      'Cache-Control':       'no-store',
-    },
-  });
 }

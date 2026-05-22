@@ -1,8 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import useSWR from 'swr';
 import { Icon, Card, CardHeader, Btn, Badge, Stat, Chart, Field, Input, Select, Switch, Tabs, StarRating, Counter, dayLabels, pct } from '../ui';
 import { PLATFORM_DEFS, type ReviewPlatformEntry } from '@/lib/platforms';
+
+const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 // ── types ─────────────────────────────────────────────────────
 
@@ -169,6 +172,24 @@ export default function ScreenFunnel({ initialBusiness, user: _user }: Props) {
   const [simRunning, setSimRunning] = useState(false);
   const [saveState,  setSaveState]  = useState<SaveState>('idle');
 
+  const { data: overview } = useSWR<{
+    kpis: { scans: number; generates: number; copies: number; redirects: number; completes: number; conversion: number };
+    daily_series: { date: string; scans: number }[];
+  }>('/api/dashboard/overview', fetcher);
+
+  const { data: rep } = useSWR<{ avg_rating: number; total_reviews: number }>(
+    '/api/businesses/reputation', fetcher
+  );
+
+  const kpis = overview?.kpis;
+  const funnelSteps = kpis ? [
+    kpis.scans,
+    kpis.generates,
+    kpis.copies,
+    kpis.redirects,
+    kpis.completes,
+  ] : null;
+
   // Local-only funnel presentation state (not yet persisted to DB)
   const [funnel, setFunnel] = useState({
     style:       'elegant',
@@ -303,26 +324,32 @@ export default function ScreenFunnel({ initialBusiness, user: _user }: Props) {
           {tab === 'flow' && (
             <div style={{ marginTop: 16 }}>
               <div className="lp-flow-canvas">
-                {['Scan QR','Rate visit','AI suggests review','Customer edits/refreshes','Redirect to Google'].map((s, i, arr) => (
-                  <div key={s} style={{ display: 'contents' }}>
-                    <div className={`lp-flow-node ${i === 2 ? 'is-accent' : ''}`}>
-                      <div className="lp-flow-num">{i + 1}</div>
-                      <div className="lp-flow-name">{s}</div>
-                      <div className="lp-flow-stat">
-                        <Counter value={[3420,2987,2455,2128,1845][i]} />
-                        <span className="lp-muted"> · {pct([1, 2987/3420, 2455/3420, 2128/3420, 1845/3420][i])}</span>
-                      </div>
-                    </div>
-                    {i < arr.length - 1 && (
-                      <div className="lp-flow-arrow">
-                        <Icon name="chevron" size={16} />
-                        <div className="lp-flow-drop">
-                          −{Math.round((1 - [2987/3420, 2455/2987, 2128/2455, 1845/2128][i]) * 100)}%
+                {['Scan QR','Rate visit','AI suggests review','Customer edits/refreshes','Redirect to Google'].map((s, i, arr) => {
+                  const steps = funnelSteps ?? [0, 0, 0, 0, 0];
+                  const top   = steps[0] || 1;
+                  const count = steps[i] ?? 0;
+                  const prev  = steps[i - 1] ?? top;
+                  return (
+                    <div key={s} style={{ display: 'contents' }}>
+                      <div className={`lp-flow-node ${i === 2 ? 'is-accent' : ''}`}>
+                        <div className="lp-flow-num">{i + 1}</div>
+                        <div className="lp-flow-name">{s}</div>
+                        <div className="lp-flow-stat">
+                          <Counter value={count} />
+                          <span className="lp-muted"> · {pct(count / top)}</span>
                         </div>
                       </div>
-                    )}
-                  </div>
-                ))}
+                      {i < arr.length - 1 && (
+                        <div className="lp-flow-arrow">
+                          <Icon name="chevron" size={16} />
+                          <div className="lp-flow-drop">
+                            {prev > 0 ? `−${Math.round((1 - count / prev) * 100)}%` : '—'}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               <div className="lp-callout" style={{ marginTop: 16 }}>
                 <Icon name="sparkles" size={16} />
@@ -466,15 +493,14 @@ export default function ScreenFunnel({ initialBusiness, user: _user }: Props) {
           {tab === 'analytics' && (
             <div style={{ marginTop: 16 }}>
               <div className="lp-grid lp-grid-4" style={{ marginBottom: 14 }}>
-                <Stat label="Funnel starts" icon="qr"      value={3420} delta={11}  tone="primary" />
-                <Stat label="Completion"    icon="check"   value={53.9} suffix="%" decimals={1} delta={4.2} tone="success" />
-                <Stat label="Avg. rating"   icon="star"    value={4.6}  decimals={1} delta={0.3} tone="warning" />
-                <Stat label="Time on page"  icon="history" value={48}   suffix="s" delta={-3} tone="violet" />
+                <Stat label="Funnel starts" icon="qr"   value={kpis?.scans    ?? 0} tone="primary" />
+                <Stat label="Completions"   icon="check" value={kpis?.completes ?? 0} tone="success" />
+                <Stat label="Avg. rating"   icon="star"  value={rep?.avg_rating ?? 0} decimals={1} tone="warning" />
+                <Stat label="Conversion"    icon="trendUp" value={kpis?.conversion ?? 0} suffix="%" decimals={1} tone="violet" />
               </div>
               <Chart
-                data={dayLabels(14).map((x, i) => ({ x, conv: 35 + Math.sin(i * 0.6) * 5 + i * 0.8, target: 50 }))}
-                keys={['conv','target']} colors={['primary','violet']} kind="line" height={220}
-                formatY={(v) => `${Math.round(v)}%`}
+                data={(overview?.daily_series ?? []).map(d => ({ x: d.date.slice(5), y: d.scans }))}
+                keys={['y']} colors={['primary']} kind="area" height={220}
               />
             </div>
           )}

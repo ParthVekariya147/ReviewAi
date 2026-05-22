@@ -1,7 +1,13 @@
 'use client';
 
+import { useCallback } from 'react';
 import { useState } from 'react';
+import useSWR from 'swr';
 import { Icon, Card, CardHeader, Btn, Badge, Tabs, Switch, Empty } from '../ui';
+import type { NotifItem } from '@/app/api/notifications/route';
+import type { NotifPreferences } from '@/app/api/notifications/preferences/route';
+
+const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 function PageHeader({ title, sub, actions }: { title: string; sub?: string; actions?: React.ReactNode }) {
   return (
@@ -15,76 +21,134 @@ function PageHeader({ title, sub, actions }: { title: string; sub?: string; acti
   );
 }
 
-function NotifPref({ title, sub, defaultOn = false }: { title: string; sub: string; defaultOn?: boolean }) {
-  const [on, setOn] = useState(defaultOn);
-  return (
-    <div className="lp-flex lp-flex-between" style={{ alignItems: 'center' }}>
-      <div>
-        <div style={{ fontSize: 13 }}>{title}</div>
-        <div className="lp-muted" style={{ fontSize: 11 }}>{sub}</div>
-      </div>
-      <Switch checked={on} onChange={setOn}/>
-    </div>
-  );
-}
+type PrefKey = keyof NotifPreferences;
 
-type NotifItem = {
-  id: number; icon: string; tone: string; title: string;
-  body: string; time: string; unread: boolean; cat: string;
-};
-
-const INITIAL_ITEMS: NotifItem[] = [
-  {id:1, icon:'star',     tone:'success', title:'New 5★ review submitted',     body:'Customer #4821 just submitted a 5-star review for NW Portland.', time:'2 min ago',  unread:true,  cat:'reviews'},
-  {id:2, icon:'trendUp',  tone:'primary', title:'Funnel A is outperforming',    body:'Front Counter funnel up 12% week-over-week.',                    time:'1 hr ago',   unread:true,  cat:'system'},
-  {id:3, icon:'qr',       tone:'violet',  title:'New QR campaign published',    body:'Patio Event campaign is live and accepting scans.',               time:'3 hr ago',   unread:true,  cat:'system'},
-  {id:4, icon:'package',  tone:'cyan',    title:'Your printed materials shipped',body:'50× table tents shipped via UPS · arrives Wed May 22.',           time:'Yesterday',  unread:false, cat:'system'},
-  {id:5, icon:'flag',     tone:'warning', title:'Low rating captured privately', body:'A 2★ rating was held back from Google and sent to your inbox.',   time:'Yesterday',  unread:false, cat:'alerts'},
-  {id:6, icon:'bell',     tone:'warning', title:"You're at 75% of quota",        body:'1,875 / 2,500 reviews used this month.',                          time:'2 days ago', unread:false, cat:'alerts'},
-  {id:7, icon:'card',     tone:'neutral', title:'Invoice paid',                  body:'INV-2026-05-001 · $49.00',                                        time:'May 1',      unread:false, cat:'billing'},
-  {id:8, icon:'team',     tone:'primary', title:'Jordan joined your team',       body:'Accepted invite to manage QR campaigns.',                         time:'Apr 28',     unread:false, cat:'system'},
-  {id:9, icon:'star',     tone:'success', title:'10 new reviews this week',      body:'Olive & Pine reached a 4.6★ average across 1,896 reviews.',       time:'Apr 26',     unread:false, cat:'reviews'},
+const PREF_DEFS: { key: PrefKey; title: string; sub: string }[] = [
+  { key: 'new_5star',          title: 'New 5★ reviews',      sub: 'Push + email'  },
+  { key: 'low_ratings',        title: 'Low ratings captured', sub: 'Email only'    },
+  { key: 'quota_alerts',       title: 'Quota alerts',         sub: 'Email + SMS'   },
+  { key: 'funnel_performance', title: 'Funnel performance',   sub: 'Weekly digest' },
+  { key: 'team_activity',      title: 'Team activity',        sub: 'Push'          },
+  { key: 'billing_invoices',   title: 'Billing & invoices',   sub: 'Email'         },
+  { key: 'product_updates',    title: 'Product updates',      sub: 'Email'         },
 ];
+
+const PREF_DEFAULTS: NotifPreferences = {
+  new_5star: true, low_ratings: true, quota_alerts: true,
+  funnel_performance: false, team_activity: false,
+  billing_invoices: true, product_updates: false,
+};
 
 export default function ScreenNotifications() {
   const [tab, setTab] = useState('all');
-  const [items, setItems] = useState<NotifItem[]>(INITIAL_ITEMS);
 
-  const filtered = tab === 'all' ? items : tab === 'unread' ? items.filter(i => i.unread) : items.filter(i => i.cat === tab);
-  const unreadCount = items.filter(i => i.unread).length;
-  const markRead = (id: number) => setItems(items.map(i => i.id === id ? {...i, unread:false} : i));
-  const markAllRead = () => setItems(items.map(i => ({...i, unread:false})));
+  const { data: meData } = useSWR<{ email: string; name: string }>('/api/auth/me', fetcher);
+  const ownerEmail = meData?.email ?? '';
+
+  const { data: notifData, isLoading, mutate } = useSWR<{
+    notifications: NotifItem[];
+    unreadCount: number;
+  }>('/api/notifications', fetcher, { refreshInterval: 60_000 });
+
+  const { data: prefData, mutate: mutatePref } = useSWR<{ preferences: NotifPreferences }>(
+    '/api/notifications/preferences', fetcher,
+  );
+
+  const prefs = prefData?.preferences ?? PREF_DEFAULTS;
+  const allItems = notifData?.notifications ?? [];
+  const unreadCount = notifData?.unreadCount ?? 0;
+
+  const filtered =
+    tab === 'all'    ? allItems :
+    tab === 'unread' ? allItems.filter(n => n.unread) :
+                       allItems.filter(n => n.cat === tab);
+
+  async function markRead(id: string) {
+    mutate(prev => {
+      if (!prev) return prev;
+      const wasUnread = prev.notifications.find(n => n.id === id)?.unread ?? false;
+      return {
+        ...prev,
+        notifications: prev.notifications.map(n => n.id === id ? { ...n, unread: false } : n),
+        unreadCount: Math.max(0, prev.unreadCount - (wasUnread ? 1 : 0)),
+      };
+    }, { revalidate: false });
+
+    await fetch('/api/notifications', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: [id] }),
+    });
+  }
+
+  async function markAllRead() {
+    const unreadIds = allItems.filter(n => n.unread).map(n => n.id);
+    if (unreadIds.length === 0) return;
+
+    mutate(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        notifications: prev.notifications.map(n => ({ ...n, unread: false })),
+        unreadCount: 0,
+      };
+    }, { revalidate: false });
+
+    await fetch('/api/notifications', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: unreadIds }),
+    });
+  }
+
+  const handlePrefChange = useCallback(async (key: PrefKey, value: boolean) => {
+    mutatePref(prev => ({
+      preferences: { ...(prev?.preferences ?? PREF_DEFAULTS), [key]: value },
+    }), { revalidate: false });
+
+    await fetch('/api/notifications/preferences', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [key]: value }),
+    });
+  }, [mutatePref]);
 
   return (
     <div className="lp-page">
       <PageHeader
         title="Notifications"
         sub={`${unreadCount} unread · all your funnel activity in one place`}
-        actions={
-          <>
-            <Btn icon="check" onClick={markAllRead}>Mark all read</Btn>
-            <Btn icon="cog">Preferences</Btn>
-          </>
-        }
+        actions={<Btn icon="check" onClick={markAllRead}>Mark all read</Btn>}
       />
 
       <div className="lp-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 16, alignItems: 'start' }}>
         <Card padded={false}>
           <div style={{ padding: '16px 20px 0' }}>
             <Tabs value={tab} onChange={setTab} tabs={[
-              {value:'all',     label:`All · ${items.length}`},
-              {value:'unread',  label:`Unread · ${unreadCount}`},
-              {value:'reviews', label:'Reviews'},
-              {value:'alerts',  label:'Alerts'},
-              {value:'billing', label:'Billing'},
-              {value:'system',  label:'System'},
+              { value: 'all',     label: `All · ${allItems.length}` },
+              { value: 'unread',  label: `Unread · ${unreadCount}` },
+              { value: 'reviews', label: 'Reviews' },
+              { value: 'alerts',  label: 'Alerts' },
+              { value: 'system',  label: 'System' },
             ]}/>
           </div>
           <div className="lp-notif-list">
-            {filtered.length === 0
-              ? <Empty icon="bell" title="All caught up" sub="You'll see new notifications here when activity happens."/>
-              : filtered.map(n => (
-                <button key={n.id} className={`lp-notif ${n.unread ? 'is-unread' : ''}`} onClick={() => markRead(n.id)}>
-                  <span className={`lp-notif-icon lp-tone-${n.tone}`}><Icon name={n.icon as Parameters<typeof Icon>[0]['name']} size={14}/></span>
+            {isLoading ? (
+              <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--lp-fg-muted)', fontSize: 13 }}>
+                Loading…
+              </div>
+            ) : filtered.length === 0 ? (
+              <Empty icon="bell" title="All caught up" sub="You'll see new notifications here when activity happens."/>
+            ) : (
+              filtered.map(n => (
+                <button
+                  key={n.id}
+                  className={`lp-notif ${n.unread ? 'is-unread' : ''}`}
+                  onClick={() => n.unread && markRead(n.id)}
+                >
+                  <span className={`lp-notif-icon lp-tone-${n.tone}`}>
+                    <Icon name={n.icon as Parameters<typeof Icon>[0]['name']} size={14}/>
+                  </span>
                   <div className="lp-notif-body">
                     <div className="lp-notif-title">{n.title}</div>
                     <div className="lp-notif-text">{n.body}</div>
@@ -92,31 +156,30 @@ export default function ScreenNotifications() {
                   </div>
                   {n.unread && <span className="lp-notif-dot"/>}
                 </button>
-              ))}
+              ))
+            )}
           </div>
         </Card>
 
         <Card>
           <CardHeader title="Delivery preferences"/>
           <div className="lp-stack" style={{ gap: 12 }}>
-            <NotifPref title="New 5★ reviews"          sub="Push + email"    defaultOn/>
-            <NotifPref title="Low ratings captured"     sub="Email only"      defaultOn/>
-            <NotifPref title="Quota alerts"             sub="Email + SMS"     defaultOn/>
-            <NotifPref title="Funnel performance"       sub="Weekly digest"/>
-            <NotifPref title="Team activity"            sub="Push"/>
-            <NotifPref title="Billing & invoices"       sub="Email"           defaultOn/>
-            <NotifPref title="Product updates"          sub="Email"/>
+            {PREF_DEFS.map(({ key, title, sub }) => (
+              <div key={key} className="lp-flex lp-flex-between" style={{ alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 13 }}>{title}</div>
+                  <div className="lp-muted" style={{ fontSize: 11 }}>{sub}</div>
+                </div>
+                <Switch checked={prefs[key]} onChange={v => handlePrefChange(key, v)}/>
+              </div>
+            ))}
           </div>
           <div className="lp-divider"/>
           <div className="lp-stack" style={{ gap: 8 }}>
             <div className="lp-eyebrow">Channels</div>
             <div className="lp-flex lp-flex-between">
               <span><Icon name="mail" size={14}/> Email</span>
-              <span className="lp-muted">maya@oliveandpine.co</span>
-            </div>
-            <div className="lp-flex lp-flex-between">
-              <span><Icon name="smartphone" size={14}/> SMS</span>
-              <span className="lp-muted">+1 (503) ••• 0182</span>
+              <span className="lp-muted">{ownerEmail || '—'}</span>
             </div>
             <div className="lp-flex lp-flex-between">
               <span><Icon name="bell" size={14}/> Push</span>

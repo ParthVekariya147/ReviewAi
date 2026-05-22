@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       // New user with no business → send to onboarding
       const { business: biz } = await getCurrentBusiness(supabase, session.user.id);
 
-      const dest = biz?.onboarding_complete ? next : '/app/onboarding';
+      const dest = biz?.onboarding_complete ? next : '/app/business_dashboard/onboarding';
       return NextResponse.redirect(new URL(dest, origin));
     }
 

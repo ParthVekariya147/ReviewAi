@@ -25,6 +25,8 @@ interface ExistingBusiness {
   review_platforms: ReviewPlatformEntry[];
   min_rating_for_google: number;
   language:         string;
+  business_type:    string | null;
+  review_keywords:  string | null;
 }
 
 interface Props {
@@ -113,6 +115,23 @@ function industryConfig(id: string) {
   return INDUSTRY_CONFIG[id?.toLowerCase()] ?? DEFAULT_INDUSTRY;
 }
 
+const KEYWORD_PLACEHOLDERS: Record<string, string> = {
+  restaurants:  'wood-fired pizza, cozy patio, friendly staff',
+  salons:       'colour specialists, relaxing atmosphere, precise cuts',
+  clinics:      'caring doctors, short wait times, professional staff',
+  cafes:        'specialty coffee, cozy seating, friendly baristas',
+  gyms:         'modern equipment, expert trainers, clean facilities',
+  retail:       'wide selection, knowledgeable staff, great prices',
+  drycleaners:  'fast turnaround, careful handling, convenient location',
+  services:     'reliable service, fair pricing, professional team',
+  hotels:       'comfortable rooms, great location, attentive service',
+  hospitality:  'warm welcome, clean facilities, excellent service',
+};
+
+function keywordPlaceholder(industry: string): string {
+  return KEYWORD_PLACEHOLDERS[industry?.toLowerCase()] ?? 'friendly staff, great value, clean space';
+}
+
 // ── constants ─────────────────────────────────────────────────
 
 const STEPS = [
@@ -174,11 +193,13 @@ export default function ScreenOnboarding({ user, existingBusiness }: Props) {
 
   // Form state — pre-fill from existing DB record if resuming
   const [form, setForm] = useState({
-    name:     existingBusiness?.name     || user.business_name || '',
-    tagline:  existingBusiness?.tagline  || '',
-    color:    existingBusiness?.brand_color   || '#6E5BFF',
-    initials: existingBusiness?.logo_initials ||
-              autoInitials(existingBusiness?.name || user.business_name || ''),
+    name:            existingBusiness?.name     || user.business_name || '',
+    tagline:         existingBusiness?.tagline  || '',
+    color:           existingBusiness?.brand_color   || '#6E5BFF',
+    initials:        existingBusiness?.logo_initials ||
+                     autoInitials(existingBusiness?.name || user.business_name || ''),
+    business_type:   existingBusiness?.business_type  ?? ind.label,
+    review_keywords: existingBusiness?.review_keywords ?? '',
   });
 
   // Platforms — resume from DB or seed with industry recommendations
@@ -224,13 +245,15 @@ export default function ScreenOnboarding({ user, existingBusiness }: Props) {
     setSaving(true);
     const googleUrl = platforms.find(p => p.id === 'google')?.url ?? '';
     await upsertBusiness({
-      name:             form.name.trim(),
-      tagline:          form.tagline.trim() || null,
-      brand_color:      form.color,
-      logo_initials:    form.initials || autoInitials(form.name),
-      google_link:      googleUrl || null,
-      review_platforms: platforms,
-      language:         'en',
+      name:                form.name.trim(),
+      tagline:             form.tagline.trim() || null,
+      brand_color:         form.color,
+      logo_initials:       form.initials || autoInitials(form.name),
+      google_link:         googleUrl || null,
+      review_platforms:    platforms,
+      language:            'en',
+      business_type:       form.business_type.trim() || null,
+      review_keywords:     form.review_keywords.trim() || null,
       onboarding_complete: false,
     });
     setSaving(false);
@@ -254,6 +277,8 @@ export default function ScreenOnboarding({ user, existingBusiness }: Props) {
       google_link:         googleUrl || null,
       review_platforms:    platforms,
       language:            'en',
+      business_type:       form.business_type.trim() || null,
+      review_keywords:     form.review_keywords.trim() || null,
       onboarding_complete: true,
     });
 
@@ -380,6 +405,22 @@ export default function ScreenOnboarding({ user, existingBusiness }: Props) {
                       value={form.tagline}
                       onChange={e => patchForm('tagline', e.target.value)}
                       placeholder="e.g. Wood-fired comfort food since 2019"
+                    />
+                  </Field>
+                  <Field label="Business type" hint="Used to personalise AI review drafts — auto-filled from your industry">
+                    <Input
+                      value={form.business_type}
+                      onChange={e => patchForm('business_type', e.target.value)}
+                      placeholder={ind.label}
+                      maxLength={60}
+                    />
+                  </Field>
+                  <Field label="Review keywords" hint="What should customers mention? Comma-separated — optional">
+                    <Input
+                      value={form.review_keywords}
+                      onChange={e => patchForm('review_keywords', e.target.value)}
+                      placeholder={keywordPlaceholder(user.industry)}
+                      maxLength={300}
                     />
                   </Field>
                   <Field label="Owner name">

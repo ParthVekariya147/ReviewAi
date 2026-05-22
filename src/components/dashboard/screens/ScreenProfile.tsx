@@ -1,7 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import useSWR from 'swr';
 import { Icon, Card, CardHeader, Btn, Badge, Progress, StarRating, Field, Input, Select } from '../ui';
+
+const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 // ── types ─────────────────────────────────────────────────────
 
@@ -15,6 +18,8 @@ interface Business {
   min_rating_for_google: number;
   language:              string;
   plan:                  string;
+  business_type:         string | null;
+  review_keywords:       string | null;
 }
 
 interface UserInfo { id: string; email: string; full_name: string }
@@ -82,19 +87,26 @@ const INDUSTRIES = [
   { value: 'Other',        label: 'Other'         },
 ];
 
-const ratingCounts: Record<number, number> = { 5: 1421, 4: 312, 3: 91, 2: 38, 1: 34 };
 
 // ── main component ────────────────────────────────────────────
 
 export default function ScreenProfile({ initialBusiness, user }: Props) {
   const [saveState, setSaveState] = useState<SaveState>('idle');
 
+  const { data: rep } = useSWR<{
+    avg_rating: number;
+    total_reviews: number;
+    distribution: Record<number, number>;
+  }>('/api/businesses/reputation', fetcher);
+
   const [form, setForm] = useState({
-    name:          initialBusiness?.name          ?? '',
-    tagline:       initialBusiness?.tagline        ?? '',
-    google_link:   initialBusiness?.google_link    ?? '',
-    brand_color:   initialBusiness?.brand_color    ?? '#6E5BFF',
-    logo_initials: initialBusiness?.logo_initials  ?? '',
+    name:             initialBusiness?.name             ?? '',
+    tagline:          initialBusiness?.tagline           ?? '',
+    google_link:      initialBusiness?.google_link       ?? '',
+    brand_color:      initialBusiness?.brand_color       ?? '#6E5BFF',
+    logo_initials:    initialBusiness?.logo_initials     ?? '',
+    business_type:    initialBusiness?.business_type     ?? '',
+    review_keywords:  initialBusiness?.review_keywords   ?? '',
   });
 
   function set<K extends keyof typeof form>(key: K, value: typeof form[K]) {
@@ -143,8 +155,12 @@ export default function ScreenProfile({ initialBusiness, user }: Props) {
               </div>
             </div>
             <div className="lp-grid lp-grid-2" style={{ marginTop: 14 }}>
-              <Field label="Industry">
-                <Select value="Other" options={INDUSTRIES} onChange={() => {}} />
+              <Field label="Business type" hint="Helps AI write relevant reviews">
+                <Select
+                  value={form.business_type || 'Other'}
+                  options={INDUSTRIES}
+                  onChange={v => set('business_type', v)}
+                />
               </Field>
               <Field label="Owner">
                 <Input defaultValue={ownerName} />
@@ -155,6 +171,16 @@ export default function ScreenProfile({ initialBusiness, user }: Props) {
             </div>
             <Field label="Tagline" hint="Shown on the funnel landing page">
               <Input value={form.tagline} onChange={e => set('tagline', e.target.value)} />
+            </Field>
+            <Field
+              label="Review keywords"
+              hint="Comma-separated highlights the AI will naturally weave into reviews — e.g. wood-fired pizza, cozy patio, fast service"
+            >
+              <Input
+                value={form.review_keywords}
+                onChange={e => set('review_keywords', e.target.value)}
+                placeholder="e.g. friendly staff, great ambiance, quick service"
+              />
             </Field>
           </Card>
 
@@ -195,25 +221,37 @@ export default function ScreenProfile({ initialBusiness, user }: Props) {
         <div className="lp-stack">
           <Card>
             <CardHeader title="Reputation summary" />
-            <div className="lp-rep-big">
-              <div className="lp-rep-big-num">4.6</div>
-              <div>
-                <StarRating value={5} readonly />
-                <div className="lp-muted">across 1,896 reviews</div>
+            {!rep ? (
+              <div style={{ padding: '16px 0', color: 'var(--lp-fg-muted)', fontSize: 13 }}>Loading…</div>
+            ) : rep.total_reviews === 0 ? (
+              <div style={{ padding: '16px 0', color: 'var(--lp-fg-muted)', fontSize: 13 }}>
+                No reviews yet — share your QR code to start collecting feedback.
               </div>
-            </div>
-            <div className="lp-rep-bars">
-              {[5,4,3,2,1].map(r => {
-                const tone = r >= 4 ? 'success' : r === 3 ? 'warning' : 'danger';
-                return (
-                  <div className="lp-rep-bar" key={r}>
-                    <span className="lp-rep-bar-num">{r}★</span>
-                    <Progress value={ratingCounts[r]} max={1421} tone={tone} height={6} />
-                    <span className="lp-rep-bar-count">{ratingCounts[r]}</span>
+            ) : (
+              <>
+                <div className="lp-rep-big">
+                  <div className="lp-rep-big-num">{rep.avg_rating.toFixed(1)}</div>
+                  <div>
+                    <StarRating value={Math.round(rep.avg_rating)} readonly />
+                    <div className="lp-muted">across {rep.total_reviews.toLocaleString()} reviews</div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+                <div className="lp-rep-bars">
+                  {[5,4,3,2,1].map(r => {
+                    const tone = r >= 4 ? 'success' : r === 3 ? 'warning' : 'danger';
+                    const count = rep.distribution[r] ?? 0;
+                    const max = Math.max(...Object.values(rep.distribution), 1);
+                    return (
+                      <div className="lp-rep-bar" key={r}>
+                        <span className="lp-rep-bar-num">{r}★</span>
+                        <Progress value={count} max={max} tone={tone} height={6} />
+                        <span className="lp-rep-bar-count">{count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </Card>
 
           <Card>

@@ -7,7 +7,12 @@ const supabaseConfigured =
   supabaseUrl.startsWith("http://") || supabaseUrl.startsWith("https://");
 
 export async function middleware(request: NextRequest) {
-  const supabaseResponse = NextResponse.next();
+  // Build a modified request-headers object that carries the pathname so
+  // server components (e.g. the dashboard layout) can read it via headers().
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-pathname', request.nextUrl.pathname);
+
+  const supabaseResponse = NextResponse.next({ request: { headers: requestHeaders } });
 
   if (!supabaseConfigured) {
     return supabaseResponse;
@@ -24,7 +29,7 @@ export async function middleware(request: NextRequest) {
         cookiesToSet.forEach(({ name, value }) =>
           request.cookies.set(name, value)
         );
-        response = NextResponse.next({ request });
+        response = NextResponse.next({ request: { headers: requestHeaders } });
         cookiesToSet.forEach(({ name, value, options }) =>
           response.cookies.set(name, value, options)
         );
@@ -81,9 +86,16 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── 3. Logged-in user → redirect away from auth pages ───────────────────
-  if (user && (pathname === "/login" || pathname === "/signup")) {
+  if (user && pathname === "/login") {
     const url = request.nextUrl.clone();
     url.pathname = DASHBOARD;
+    return NextResponse.redirect(url);
+  }
+  // Redirect away from signup to onboarding so users who haven't finished
+  // setup are sent to the right place rather than straight to the dashboard.
+  if (user && pathname === "/signup") {
+    const url = request.nextUrl.clone();
+    url.pathname = '/app/business_dashboard/onboarding';
     return NextResponse.redirect(url);
   }
 
