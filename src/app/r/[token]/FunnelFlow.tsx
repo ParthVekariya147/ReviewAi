@@ -177,6 +177,7 @@ export default function FunnelFlow({
   const [editing, setEditing]   = useState(false);
   const [editedText, setEditedText] = useState('');
   const [copied, setCopied]         = useState(false);
+  const [copiedReviewId, setCopiedReviewId] = useState<string | null>(null);
   const [genError, setGenError]     = useState('');
   const [privateFb, setPrivateFb]   = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -245,6 +246,7 @@ export default function FunnelFlow({
   /* refresh — show the pre-generated 2nd draft instantly (no API call) */
   function handleRefresh() {
     setCopied(false);
+    setCopiedReviewId(null);
     setEditing(false);
     const next = drafts.length > 1 ? (draftIdx + 1) % drafts.length : draftIdx;
     setDraftIdx(next);
@@ -252,18 +254,36 @@ export default function FunnelFlow({
     track('refresh', { draft_index: next });
   }
 
-  /* copy text — tracks which draft index was used */
-  async function handleCopy() {
+  /* Single-platform: copy + open URL + go to success in one click.
+     Multi-platform: copy + show platform selector (user must choose).
+     window.open must fire BEFORE the first await or pop-up blockers will kill it. */
+  async function handleCopyAndGo(singlePlatform?: { id: string; url: string }) {
+    // Open tab synchronously inside the click event, before any await
+    if (singlePlatform?.url) window.open(singlePlatform.url, '_blank');
+
     try { await navigator.clipboard.writeText(reviewText); } catch {}
-    setCopied(true);
+
     track('copy', { draft_index: draftIdx });
     if (reviewId) void updateReviewStatus(reviewId, 'copy');
+
+    if (singlePlatform) {
+      track('redirect', { platform: singlePlatform.id });
+      if (reviewId) void updateReviewStatus(reviewId, 'redirect', singlePlatform.id);
+      goTo('success');
+    } else {
+      // Multi-platform: lock in the review ID at copy time, then show platform picker
+      setCopiedReviewId(reviewId);
+      setCopied(true);
+    }
   }
 
   function openPlatform(url: string, id: string) {
     if (url) window.open(url, '_blank');
     track('redirect', { platform: id });
-    if (reviewId) void updateReviewStatus(reviewId, 'redirect', id);
+    // Use copiedReviewId (locked at copy time) so "Try another" between copy and
+    // platform-click cannot cause the redirect to be attributed to the wrong review.
+    const trackId = copiedReviewId ?? reviewId;
+    if (trackId) void updateReviewStatus(trackId, 'redirect', id);
     goTo('success');
   }
 
@@ -415,9 +435,14 @@ export default function FunnelFlow({
                 </button>
               </div>
 
-              {/* Step 1: Copy button — shown until the user copies */}
+              {/* Copy button:
+                  - Single platform → copy + open URL + success (one click)
+                  - Multi platform  → copy + show platform selector */}
               {!copied && (
-                <button className="rv-btn rv-btn-primary" onClick={handleCopy}>
+                <button
+                  className="rv-btn rv-btn-primary"
+                  onClick={() => handleCopyAndGo(isMultiPlatform ? undefined : resolvedPlatforms[0])}
+                >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                     <rect x="5" y="5" width="9" height="9" rx="2" stroke="white" strokeWidth="1.5"/>
                     <path d="M3 11V3h8" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>

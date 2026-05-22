@@ -20,6 +20,8 @@ interface Business {
   language:              string;
   plan:                  string;
   review_platforms?:     ReviewPlatformEntry[] | null;
+  review_keywords?:      string | null;
+  business_type?:        string | null;
 }
 
 interface UserInfo { id: string; email: string; full_name: string }
@@ -199,15 +201,39 @@ export default function ScreenFunnel({ initialBusiness }: Props) {
     reviewCount: 3,
   });
 
+  // Local-only switch states (no DB columns)
+  const [showHours,      setShowHours]      = useState(true);
+  const [showStaff,      setShowStaff]      = useState(false);
+  const [discloseAI,     setDiscloseAI]     = useState(true);
+  const [capturePrivate, setCapturePrivate] = useState(true);
+  const [notify5Star,    setNotify5Star]    = useState(true);
+  const [throttleScans,  setThrottleScans]  = useState(true);
+
+  // Talking points — parsed from business.review_keywords (comma-separated)
+  const [talkingPoints, setTalkingPoints] = useState<string[]>(() =>
+    initialBusiness?.review_keywords
+      ? initialBusiness.review_keywords.split(',').map(k => k.trim()).filter(Boolean)
+      : []
+  );
+  const [addingTopic, setAddingTopic] = useState(false);
+  const [topicInput,  setTopicInput]  = useState('');
+
   // Business-level fields that ARE persisted
   const [language,  setLanguage]  = useState(initialBusiness?.language              ?? 'en');
   const [threshold, setThreshold] = useState(initialBusiness?.min_rating_for_google ?? 4);
 
-  // Review platforms — init from saved data or seed with google_link
+  // Review platforms — init from saved data or seed with google_link.
+  // Back-fill google_link into any existing Google entry whose URL is empty,
+  // so a stale empty review_platforms row never shadows a valid google_link.
   const [platforms, setPlatforms] = useState<ReviewPlatformEntry[]>(() => {
     const saved = initialBusiness?.review_platforms;
-    if (saved && saved.length > 0) return saved;
-    return [{ id: 'google', url: initialBusiness?.google_link ?? '', enabled: true }];
+    const gl    = initialBusiness?.google_link ?? '';
+    if (saved && saved.length > 0) {
+      return saved.map(p =>
+        p.id === 'google' && !p.url && gl ? { ...p, url: gl } : p
+      );
+    }
+    return [{ id: 'google', url: gl, enabled: true }];
   });
 
   const brand = {
@@ -230,17 +256,45 @@ export default function ScreenFunnel({ initialBusiness }: Props) {
 
   const setFunnelField = (k: string, v: string | number) => setFunnel(f => ({ ...f, [k]: v }));
 
+  // Ensure URLs have a protocol so sanitizeUrl on the server doesn't strip them.
+  // 'www.google.com' → 'https://www.google.com', already-valid URLs are untouched.
+  function normalizeUrl(u: string): string {
+    if (!u) return u;
+    if (u.startsWith('http://') || u.startsWith('https://')) return u;
+    return `https://${u}`;
+  }
+
   async function publish() {
     setSaveState('saving');
+    // Normalize all platform URLs before sending, and update local state so
+    // the input reflects the corrected value (e.g. adds https://) after publish.
+    const normalizedPlatforms = platforms.map(p => ({ ...p, url: normalizeUrl(p.url) }));
+    setPlatforms(normalizedPlatforms);
+    const googleUrl = normalizedPlatforms.find(p => p.id === 'google')?.url ?? null;
     const ok = await patchBusiness({
       language,
       min_rating_for_google: threshold,
-      review_platforms:      platforms,
-      // keep google_link in sync with first google entry for backward compat
-      google_link: platforms.find(p => p.id === 'google')?.url ?? null,
+      review_platforms:      normalizedPlatforms,
+      review_keywords:       talkingPoints.join(', ') || null,
+      google_link:           googleUrl || null,
     });
     setSaveState(ok ? 'saved' : 'error');
     if (ok) setTimeout(() => setSaveState('idle'), 2500);
+  }
+
+  function addTalkingPoint() {
+    const v = topicInput.trim();
+    if (v && !talkingPoints.includes(v)) {
+      setTalkingPoints(ps => [...ps, v]);
+      setSaveState('idle');
+    }
+    setTopicInput('');
+    setAddingTopic(false);
+  }
+
+  function removeTalkingPoint(p: string) {
+    setTalkingPoints(ps => ps.filter(x => x !== p));
+    setSaveState('idle');
   }
 
   // Platform helpers
@@ -316,8 +370,8 @@ export default function ScreenFunnel({ initialBusiness }: Props) {
                 <Field label="Primary CTA"><Input defaultValue="Rate your visit" /></Field>
                 <Field label="Logo"><Input defaultValue="logo.svg" icon="upload" /></Field>
               </div>
-              <Switch label="Show business hours & address" sub="Helps customer recall the visit" checked={true} onChange={() => {}} />
-              <Switch label="Show staff signature" sub="Personalize with the staff member's name" checked={false} onChange={() => {}} />
+              <Switch label="Show business hours & address" sub="Helps customer recall the visit" checked={showHours} onChange={setShowHours} />
+              <Switch label="Show staff signature" sub="Personalize with the staff member's name" checked={showStaff} onChange={setShowStaff} />
             </div>
           )}
 
@@ -389,13 +443,32 @@ export default function ScreenFunnel({ initialBusiness }: Props) {
               </Field>
               <Field label="Suggested talking points" hint="Topics to weave into AI suggestions">
                 <div className="lp-chips">
-                  {['wood-fired oven','neighborhood vibe','vegan options','service speed','patio seating'].map(c => (
-                    <span className="lp-chip" key={c}>{c} <Icon name="x" size={11} /></span>
+                  {talkingPoints.map(c => (
+                    <span className="lp-chip" key={c} onClick={() => removeTalkingPoint(c)} style={{ cursor: 'pointer' }}>
+                      {c} <Icon name="x" size={11} />
+                    </span>
                   ))}
-                  <button className="lp-chip lp-chip-add"><Icon name="plus" size={11} /> Add topic</button>
+                  {addingTopic ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <Input
+                        value={topicInput}
+                        onChange={e => setTopicInput(e.target.value)}
+                        onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                          if (e.key === 'Enter') addTalkingPoint();
+                          if (e.key === 'Escape') { setAddingTopic(false); setTopicInput(''); }
+                        }}
+                        placeholder="e.g. great coffee"
+                        style={{ width: 140, height: 28, fontSize: 12 }}
+                        autoFocus
+                      />
+                      <button className="lp-chip lp-chip-add" onClick={addTalkingPoint}><Icon name="check" size={11} /></button>
+                    </span>
+                  ) : (
+                    <button className="lp-chip lp-chip-add" onClick={() => setAddingTopic(true)}><Icon name="plus" size={11} /> Add topic</button>
+                  )}
                 </div>
               </Field>
-              <Switch label="Disclose AI assistance to customers" sub="Recommended for Google policy compliance" checked={true} onChange={() => {}} />
+              <Switch label="Disclose AI assistance to customers" sub="Recommended for Google policy compliance" checked={discloseAI} onChange={setDiscloseAI} />
             </div>
           )}
 
@@ -484,9 +557,9 @@ export default function ScreenFunnel({ initialBusiness }: Props) {
                 </div>
               </Field>
 
-              <Switch label="Capture low ratings privately" sub="Below-threshold customers send feedback directly to you" checked={true} onChange={() => {}} />
-              <Switch label="Notify owner on every 5★ review" sub="Push notifications and email" checked={true} onChange={() => {}} />
-              <Switch label="Throttle repeat scans" sub="One review per customer device per 30 days" checked={true} onChange={() => {}} />
+              <Switch label="Capture low ratings privately" sub="Below-threshold customers send feedback directly to you" checked={capturePrivate} onChange={setCapturePrivate} />
+              <Switch label="Notify owner on every 5★ review" sub="Push notifications and email" checked={notify5Star} onChange={setNotify5Star} />
+              <Switch label="Throttle repeat scans" sub="One review per customer device per 30 days" checked={throttleScans} onChange={setThrottleScans} />
             </div>
           )}
 

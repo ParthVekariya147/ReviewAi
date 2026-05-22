@@ -20,6 +20,8 @@ export default async function FunnelPage() {
     language: String(currentBusiness.language ?? 'en'),
     plan: String(currentBusiness.plan ?? 'free'),
     review_platforms: Array.isArray(currentBusiness.review_platforms) ? currentBusiness.review_platforms : [],
+    review_keywords: (currentBusiness.review_keywords as string | null) ?? null,
+    business_type: (currentBusiness.business_type as string | null) ?? null,
   } : null;
 
   return (

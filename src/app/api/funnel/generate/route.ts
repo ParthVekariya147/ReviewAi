@@ -98,15 +98,30 @@ export async function POST(req: NextRequest) {
     status: 'generated',
   }));
 
+  // Do NOT chain .order() after .insert().select() — some PostgREST versions
+  // return an empty array when ORDER BY is applied to a mutation response,
+  // causing a false-positive "no rows saved" error even when the insert succeeded.
   const { data: saved, error: dbError } = await db
     .from('generated_reviews')
     .insert(inserts)
-    .select('id, ai_text')
-    .order('created_at', { ascending: true });
+    .select('id, ai_text');
 
   if (dbError || !saved?.length) {
     console.error('[funnel/generate] DB error:', dbError);
-    return NextResponse.json({ error: 'Failed to save your review. Please try again.' }, { status: 503 });
+    console.error('[funnel/generate] Insert payload:', JSON.stringify(inserts));
+    // Expose actual DB error in development so it is visible in the browser
+    return NextResponse.json({
+      error: 'Failed to save your review. Please try again.',
+      ...(process.env.NODE_ENV === 'development' && {
+        debug: {
+          message:  dbError?.message  ?? null,
+          code:     dbError?.code     ?? null,
+          details:  dbError?.details  ?? null,
+          hint:     dbError?.hint     ?? null,
+          rowCount: saved?.length     ?? 0,
+        },
+      }),
+    }, { status: 503 });
   }
 
   const drafts = saved.map(r => ({ text: r.ai_text as string, review_id: r.id as string }));
