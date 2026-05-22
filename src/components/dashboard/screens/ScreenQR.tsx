@@ -238,11 +238,12 @@ export default function ScreenQR() {
                         <QRCanvas value={funnelUrl || 'https://reevo.io'} size={220} color="#0A0B14" bg="#FFFFFF" radius={16} />
                       </div>
                       <div className="lp-flex" style={{ gap: 8, marginTop: 12, justifyContent: 'center' }}>
-                        <a href={`/api/qr/${current.id}/image`} download={`${current.campaign_name}.png`}>
+                        <a href={`/api/qr/${current.id}/image?format=png`} download={`${current.campaign_name}.png`}>
                           <Btn icon="download" size="sm">PNG</Btn>
                         </a>
-                        <Btn icon="download" size="sm">PDF</Btn>
-                        <Btn icon="download" size="sm">SVG</Btn>
+                        <a href={`/api/qr/${current.id}/image?format=svg`} download={`${current.campaign_name}.svg`}>
+                          <Btn icon="download" size="sm">SVG</Btn>
+                        </a>
                       </div>
                     </div>
 
