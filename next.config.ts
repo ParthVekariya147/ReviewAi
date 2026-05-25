@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const securityHeaders = [
   { key: "X-DNS-Prefetch-Control",    value: "on" },
@@ -15,7 +16,9 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      // /monitoring is the Sentry tunnel route — routes Sentry traffic through
+      // our own domain, so no external Sentry domains needed in connect-src.
+      "script-src 'self' 'unsafe-inline'",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob: https://lh3.googleusercontent.com",
@@ -27,6 +30,7 @@ const securityHeaders = [
 
 const nextConfig = (phase: string): NextConfig => ({
   distDir: phase === PHASE_DEVELOPMENT_SERVER ? ".next-dev" : ".next",
+  allowedDevOrigins: ["192.168.1.108"],
   eslint: {
     ignoreDuringBuilds: false,
   },
@@ -38,19 +42,16 @@ const nextConfig = (phase: string): NextConfig => ({
   async headers() {
     return [
       {
-        /* Apply to all routes */
         source: "/(.*)",
         headers: securityHeaders,
       },
       {
-        /* No caching for API routes */
         source: "/api/(.*)",
         headers: [
           { key: "Cache-Control", value: "no-store, max-age=0" },
         ],
       },
       {
-        /* QR images are user-specific — must not be shared-cached */
         source: "/api/qr/:id/image",
         headers: [
           { key: "Cache-Control", value: "private, no-store" },
@@ -60,4 +61,24 @@ const nextConfig = (phase: string): NextConfig => ({
   },
 });
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  // Suppress noisy build output; CI logs remain clean
+  silent: !process.env.CI,
+  // Upload source maps only when SENTRY_AUTH_TOKEN is present (i.e. in CI/CD)
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  // Route Sentry SDK requests through /monitoring instead of sentry.io directly.
+  // Keeps connect-src CSP tight (no *.sentry.io needed).
+  tunnelRoute: "/monitoring",
+  // Upload source maps but hide them from the browser bundle
+  sourcemaps: {
+    deleteSourcemapsAfterUpload: true,
+  },
+  // Tree-shake Sentry logger in production (replaces deprecated disableLogger)
+  webpack: {
+    treeshake: {
+      removeDebugLogging: true,
+    },
+  },
+  // Widen client file upload for better stack traces on minified bundles
+  widenClientFileUpload: true,
+});

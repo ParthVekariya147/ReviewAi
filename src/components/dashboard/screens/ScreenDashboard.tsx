@@ -1,6 +1,6 @@
 'use client';
 
-import useSWR from 'swr';
+import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import type { IconName } from '../ui';
 import {
@@ -93,11 +93,12 @@ interface OverviewData {
 
 export default function ScreenDashboard({ ownerName = 'User' }: { ownerName?: string }) {
   const router = useRouter();
-  const { data, isLoading, error } = useSWR<OverviewData>(
-    '/api/dashboard/overview',
-    fetcher,
-    { refreshInterval: 30_000, revalidateOnFocus: true },
-  );
+  const { data, isLoading, error } = useQuery<OverviewData>({
+    queryKey: ['/api/dashboard/overview'],
+    queryFn:  () => fetcher('/api/dashboard/overview'),
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+  });
 
   // Loading state
   if (isLoading) {

@@ -1,6 +1,6 @@
 /* Auto-mirrors the database schema in database/001_initial_schema.sql */
 
-export type BusinessPlan = 'free' | 'starter' | 'pro' | 'scale';
+export type BusinessPlan = 'free' | 'starter' | 'pro' | 'enterprise';
 export type QRStatus    = 'draft' | 'live' | 'paused' | 'archived';
 export type SubStatus   = 'active' | 'trialing' | 'past_due' | 'cancelled';
 export type EventType   = 'scan' | 'generate' | 'refresh' | 'copy' | 'redirect' | 'complete' | 'private_feedback';

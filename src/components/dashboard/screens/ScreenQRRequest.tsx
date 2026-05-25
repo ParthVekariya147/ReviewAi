@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import useSWR from 'swr';
+import { useQuery } from '@tanstack/react-query';
 import { Icon, Card, CardHeader, Btn, Field, Input, Select, Switch, Segmented, QRCanvas } from '../ui';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
@@ -19,9 +19,10 @@ function PageHeader({ title, sub, actions }: { title: string; sub?: string; acti
 }
 
 export default function ScreenQRRequest() {
-  const { data: bizData } = useSWR<{ business: { name: string; logo_initials: string; brand_color: string } | null }>(
-    '/api/businesses', fetcher
-  );
+  const { data: bizData } = useQuery<{ business: { name: string; logo_initials: string; brand_color: string } | null }>({
+    queryKey: ['/api/businesses'],
+    queryFn:  () => fetcher('/api/businesses'),
+  });
   const biz = bizData?.business;
 
   const [name, setName] = useState('Sidewalk Sign');

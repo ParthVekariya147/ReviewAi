@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import useSWR from 'swr';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { IconName } from '../ui';
 import {
   Icon, Card, CardHeader, Btn, Badge, Counter,
@@ -147,8 +147,15 @@ export default function ScreenQR() {
   const [creating,   setCreating]   = useState(false);
   const [patching,   setPatching]   = useState(false);
 
-  const { data: qrData,       mutate: mutateQR }  = useSWR<{ codes: QRCode[] }>('/api/qr', fetcher);
-  const { data: overviewData }                     = useSWR<{ campaigns: OverviewCampaign[] }>('/api/dashboard/overview', fetcher);
+  const queryClient = useQueryClient();
+  const { data: qrData }       = useQuery<{ codes: QRCode[] }>({
+    queryKey: ['/api/qr'],
+    queryFn:  () => fetcher('/api/qr'),
+  });
+  const { data: overviewData } = useQuery<{ campaigns: OverviewCampaign[] }>({
+    queryKey: ['/api/dashboard/overview'],
+    queryFn:  () => fetcher('/api/dashboard/overview'),
+  });
 
   // Merge QR codes with analytics stats from overview
   const codes: MergedCampaign[] = (qrData?.codes ?? []).map((qr, i) => {
@@ -184,7 +191,7 @@ export default function ScreenQR() {
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ [field]: value }),
     });
-    await mutateQR();
+    await queryClient.invalidateQueries({ queryKey: ['/api/qr'] });
     setPatching(false);
   }
 
@@ -200,7 +207,7 @@ export default function ScreenQR() {
       {creating && (
         <CreateModal
           onClose={() => setCreating(false)}
-          onCreated={id => { setCreating(false); mutateQR(); setSelectedId(id); }}
+          onCreated={id => { setCreating(false); queryClient.invalidateQueries({ queryKey: ['/api/qr'] }); setSelectedId(id); }}
         />
       )}
 

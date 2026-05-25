@@ -1,0 +1,86 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/admin/auth';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getUserEmailsByIds } from '@/lib/admin/getUsersByIds';
+
+const PAGE_SIZE = 25;
+
+const PLAN_PRICES: Record<string, number> = {
+  free: 0, starter: 2900, pro: 7900, enterprise: 19900,
+};
+
+export async function GET(request: NextRequest) {
+  const result = await requireAdmin();
+  if ('error' in result) return result.error;
+
+  const db = createAdminClient();
+  const sp = request.nextUrl.searchParams;
+  const page   = Math.max(1, parseInt(sp.get('page') ?? '1'));
+  const search = sp.get('q') ?? '';
+  const plan   = sp.get('plan') ?? '';
+  const status = sp.get('status') ?? '';
+  const sortBy = sp.get('sort') ?? 'created_at';
+  const dir    = sp.get('dir') === 'asc';
+  const offset = (page - 1) * PAGE_SIZE;
+
+  let query = db
+    .from('subscriptions')
+    .select(`
+      id, business_id, plan, status, provider, provider_id,
+      current_period_end, cancel_at_end, created_at, updated_at,
+      businesses (id, name, owner_id)
+    `, { count: 'exact' });
+
+  if (plan)   query = query.eq('plan', plan);
+  if (status) query = query.eq('status', status);
+
+  const sortable = ['plan', 'status', 'current_period_end', 'created_at'].includes(sortBy) ? sortBy : 'created_at';
+  query = query.order(sortable, { ascending: dir }).range(offset, offset + PAGE_SIZE - 1);
+
+  const { data, count, error } = await query;
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  type BizJoin = { id: string; name: string; owner_id: string };
+  function extractBiz(raw: unknown): BizJoin | null {
+    if (!raw) return null;
+    const r = Array.isArray(raw) ? raw[0] : raw;
+    return r as BizJoin | null;
+  }
+
+  const ownerIds = [...new Set((data ?? []).map(s => extractBiz(s.businesses)?.owner_id).filter(Boolean) as string[])];
+  const emailMap = await getUserEmailsByIds(db, ownerIds);
+
+  let rows = (data ?? []).map(s => {
+    const biz = extractBiz(s.businesses);
+    return {
+      ...s,
+      business_name: biz?.name ?? '',
+      owner_email:   biz ? (emailMap[biz.owner_id] ?? '') : '',
+      businesses:    undefined,
+    };
+  });
+
+  // Filter by search after joining business name/email
+  if (search) {
+    const q = search.toLowerCase();
+    rows = rows.filter(r => r.business_name.toLowerCase().includes(q) || r.owner_email.toLowerCase().includes(q));
+  }
+
+  // Summary metrics
+  // TODO(perf): replace with COUNT GROUP BY aggregate after migration 018 is run
+  const { data: allSubs } = await db.from('subscriptions').select('plan, status, cancel_at_end').limit(5000);
+  const mrr = (allSubs ?? []).filter(s => s.status === 'active').reduce((sum, s) => sum + (PLAN_PRICES[s.plan] ?? 0), 0);
+  const churn_risk = (allSubs ?? []).filter(s => s.cancel_at_end).length;
+  const past_due   = (allSubs ?? []).filter(s => s.status === 'past_due').length;
+  const plan_counts: Record<string, number> = {};
+  (allSubs ?? []).forEach(s => { plan_counts[s.plan] = (plan_counts[s.plan] ?? 0) + 1; });
+
+  return NextResponse.json({
+    data: rows,
+    total: count ?? 0,
+    page,
+    page_size: PAGE_SIZE,
+    has_more: (count ?? 0) > page * PAGE_SIZE,
+    summary: { mrr, churn_risk, past_due, plan_counts },
+  });
+}

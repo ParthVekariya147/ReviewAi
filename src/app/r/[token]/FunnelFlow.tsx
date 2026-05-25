@@ -121,6 +121,7 @@ async function fetchDrafts(token: string, rating: number): Promise<Draft[]> {
 }
 
 async function updateReviewStatus(
+  token: string,
   reviewId: string,
   action: 'copy' | 'redirect',
   platform?: string,
@@ -128,7 +129,7 @@ async function updateReviewStatus(
   await fetch('/api/funnel/status', {
     method:    'PATCH',
     headers:   { 'Content-Type': 'application/json' },
-    body:      JSON.stringify({ review_id: reviewId, action, platform }),
+    body:      JSON.stringify({ token, review_id: reviewId, action, platform }),
     keepalive: true,
   }).catch(() => {});
 }
@@ -264,11 +265,11 @@ export default function FunnelFlow({
     try { await navigator.clipboard.writeText(reviewText); } catch {}
 
     track('copy', { draft_index: draftIdx });
-    if (reviewId) void updateReviewStatus(reviewId, 'copy');
+    if (reviewId) void updateReviewStatus(token, reviewId, 'copy');
 
     if (singlePlatform) {
       track('redirect', { platform: singlePlatform.id });
-      if (reviewId) void updateReviewStatus(reviewId, 'redirect', singlePlatform.id);
+      if (reviewId) void updateReviewStatus(token, reviewId, 'redirect', singlePlatform.id);
       goTo('success');
     } else {
       // Multi-platform: lock in the review ID at copy time, then show platform picker
@@ -283,7 +284,7 @@ export default function FunnelFlow({
     // Use copiedReviewId (locked at copy time) so "Try another" between copy and
     // platform-click cannot cause the redirect to be attributed to the wrong review.
     const trackId = copiedReviewId ?? reviewId;
-    if (trackId) void updateReviewStatus(trackId, 'redirect', id);
+    if (trackId) void updateReviewStatus(token, trackId, 'redirect', id);
     goTo('success');
   }
 

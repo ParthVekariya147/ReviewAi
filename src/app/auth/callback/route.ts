@@ -2,17 +2,21 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentBusiness } from '@/lib/businesses/current';
+import { env } from '@/lib/env';
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/app/business_dashboard";
+  const DASHBOARD = "/app/business_dashboard";
+  const rawNext = searchParams.get("next") ?? "";
+  // Reject external or protocol-relative redirects — same-origin only
+  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : DASHBOARD;
 
   if (code) {
     const cookieStore = await cookies();
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+      env.SUPABASE_URL,
+      env.SUPABASE_ANON_KEY,
       {
         cookies: {
           getAll() {

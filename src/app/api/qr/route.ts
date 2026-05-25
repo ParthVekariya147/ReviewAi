@@ -16,7 +16,6 @@ export async function GET(req: NextRequest) {
   if (businessError) return NextResponse.json({ error: 'Failed to load campaigns' }, { status: 500 });
   if (!businessId) return NextResponse.json({ error: 'No business found' }, { status: 404 });
 
-  // BUG-13: paginate to prevent loading all rows into memory
   const sp      = req.nextUrl.searchParams;
   const page    = Math.max(1, parseInt(sp.get('page') ?? '1', 10));
   const perPage = Math.min(100, Math.max(1, parseInt(sp.get('per_page') ?? '50', 10)));
@@ -61,7 +60,7 @@ export async function POST(req: NextRequest) {
       business_id:    businessId,
       token,
       campaign_name:  campaignName,
-      status:         body?.status         ?? 'draft',
+      status:         'draft',
       dynamic:        body?.dynamic        ?? true,
       ab_testing:     body?.ab_testing     ?? false,
       pause_fallback: body?.pause_fallback ?? false,

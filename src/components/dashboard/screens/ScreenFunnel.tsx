@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import useSWR from 'swr';
+import { useQuery } from '@tanstack/react-query';
 import { Icon, Card, CardHeader, Btn, Badge, Stat, Chart, Field, Input, Select, Switch, Tabs, StarRating, Counter, pct } from '../ui';
 import { PLATFORM_DEFS, type ReviewPlatformEntry } from '@/lib/platforms';
 
@@ -174,14 +174,18 @@ export default function ScreenFunnel({ initialBusiness }: Props) {
   const [simRunning, setSimRunning] = useState(false);
   const [saveState,  setSaveState]  = useState<SaveState>('idle');
 
-  const { data: overview } = useSWR<{
+  const { data: overview } = useQuery<{
     kpis: { scans: number; generates: number; copies: number; redirects: number; completes: number; conversion: number };
     daily_series: { date: string; scans: number }[];
-  }>('/api/dashboard/overview', fetcher);
+  }>({
+    queryKey: ['/api/dashboard/overview'],
+    queryFn:  () => fetcher('/api/dashboard/overview'),
+  });
 
-  const { data: rep } = useSWR<{ avg_rating: number; total_reviews: number }>(
-    '/api/businesses/reputation', fetcher
-  );
+  const { data: rep } = useQuery<{ avg_rating: number; total_reviews: number }>({
+    queryKey: ['/api/businesses/reputation'],
+    queryFn:  () => fetcher('/api/businesses/reputation'),
+  });
 
   const kpis = overview?.kpis;
   const funnelSteps = kpis ? [

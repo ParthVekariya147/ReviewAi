@@ -4,17 +4,18 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getCurrentBusinessId } from '@/lib/businesses/current';
 import { generateQRPng, generateQRSvg } from '@/lib/qr/generate';
 import { rateLimit, getClientIp } from '@/lib/security/rateLimit';
+import { env } from '@/lib/env';
 
 type Params = Promise<{ id: string }>;
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://reevo.io';
+const BASE_URL = env.APP_URL;
 
 /* GET /api/qr/[id]/image?format=png|svg&color=%23000000&bg=%23FFFFFF&size=512
    Returns the QR image for a campaign. Auth required (owner only).             */
 export async function GET(req: NextRequest, { params }: { params: Params }) {
   /* Rate limit: 30 image downloads / minute per IP */
   const ip = getClientIp(req);
-  const rl = rateLimit(`qr-image:${ip}`, 30, 60_000);
+  const rl = await rateLimit(`qr-image:${ip}`, 30, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: 'Too many requests' }, {
       status: 429,
@@ -74,7 +75,7 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
     }
 
     const png = await generateQRPng(qrUrl, { color, bg, size });
-    return new NextResponse(png as unknown as BodyInit, {
+    return new NextResponse(png.buffer as ArrayBuffer, {
       headers: {
         'Content-Type':        'image/png',
         'Content-Disposition': `attachment; filename="${safeName}-qr.png"`,

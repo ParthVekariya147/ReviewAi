@@ -13,7 +13,7 @@ const VALID_EVENTS: EventType[] = [
    Rate limited: 60 events / minute per IP.               */
 export async function POST(req: NextRequest) {
   const ip  = getClientIp(req);
-  const rl  = rateLimit(`analytics:${ip}`, 60, 60_000);
+  const rl  = await rateLimit(`analytics:${ip}`, 60, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: 'Too many requests' }, {
       status: 429,
@@ -63,24 +63,25 @@ export async function POST(req: NextRequest) {
       return out;
     }
 
-    /* insert analytics event */
-    await supabase.from('analytics_events').insert({
-      qr_id:       qr.id,
-      business_id: qr.business_id,
-      event_type:  eventType,
-      device,
-      country,
-      meta:        sanitizeMeta(body.meta),
-    });
-
-    /* also insert a qr_scan row for the 'scan' event for quick count queries */
+    /* insert analytics event + optional qr_scan row in parallel */
+    const writes = [
+      supabase.from('analytics_events').insert({
+        qr_id:       qr.id,
+        business_id: qr.business_id,
+        event_type:  eventType,
+        device,
+        country,
+        meta:        sanitizeMeta(body.meta),
+      }),
+    ];
     if (eventType === 'scan') {
-      await supabase.from('qr_scans').insert({
+      writes.push(supabase.from('qr_scans').insert({
         qr_id:   qr.id,
         device,
         country,
-      });
+      }));
     }
+    await Promise.all(writes);
 
     return NextResponse.json({ ok: true });
   } catch {

@@ -40,6 +40,8 @@ const LEGACY_SELECT = [
 ].join(', ');
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+type AdminClient = ReturnType<typeof createAdminClient>;
+type AnyClient = SupabaseClient | AdminClient;
 type ApiError = { code?: string | null; message?: string | null } | null;
 type BusinessRow = Record<string, unknown>;
 
@@ -137,7 +139,7 @@ export function normalizeLegacyBusiness(business: BusinessRow | null): BusinessR
   };
 }
 
-async function getLegacyBusinessById(supabase: SupabaseClient, businessId: string) {
+async function getLegacyBusinessById(supabase: AnyClient, businessId: string) {
   const { data, error } = await supabase
     .from('businesses')
     .select(LEGACY_SELECT)
@@ -177,7 +179,7 @@ export async function getCurrentBusiness(supabase: SupabaseClient, userId: strin
     return { business: null, error: null, schema: 'legacy' as const };
   }
 
-  const legacy = await getLegacyBusinessById(db as unknown as SupabaseClient, legacyId);
+  const legacy = await getLegacyBusinessById(db, legacyId);
 
   // CRIT-2: verify ownership — cookie value must belong to this user
   if (legacy.business && (legacy.business as BusinessRow).owner_id !== userId) {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import useSWR from 'swr';
+import { useQuery } from '@tanstack/react-query';
 import { Icon, Card, CardHeader, Btn, Progress, StarRating, Field, Input, Select } from '../ui';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
@@ -93,11 +93,14 @@ const INDUSTRIES = [
 export default function ScreenProfile({ initialBusiness, user }: Props) {
   const [saveState, setSaveState] = useState<SaveState>('idle');
 
-  const { data: rep } = useSWR<{
+  const { data: rep } = useQuery<{
     avg_rating: number;
     total_reviews: number;
     distribution: Record<number, number>;
-  }>('/api/businesses/reputation', fetcher);
+  }>({
+    queryKey: ['/api/businesses/reputation'],
+    queryFn:  () => fetcher('/api/businesses/reputation'),
+  });
 
   const [form, setForm] = useState({
     name:             initialBusiness?.name             ?? '',

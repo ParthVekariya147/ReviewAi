@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo, useLayoutEffect } from 'react';
+import NextImage from 'next/image';
 import QRCode from 'qrcode';
 
 /* ========================= ICONS ========================= */
@@ -199,7 +200,7 @@ export interface AvatarProps {
 export const Avatar = ({ name = '?', color, size = 32, src }: AvatarProps) => {
   const initials = name.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
   const bg = color || hashColor(name);
-  if (src) return <img src={src} alt={name} className="lp-avatar" style={{ width: size, height: size }}/>;
+  if (src) return <NextImage src={src} alt={name} width={size} height={size} className="lp-avatar" style={{ borderRadius: '50%' }}/>;
   return (
     <div className="lp-avatar" style={{ width: size, height: size, background: bg, fontSize: size * 0.38 }}>
       {initials}
@@ -473,6 +474,7 @@ export const Chart = ({ data, keys = ['y'], colors = ['primary'], height = 220, 
   const [hover, setHover] = useState<number | null>(null);
   const [t, setT] = useState(animate ? 0 : 1);
 
+  const keysKey = keys.join(',');
   useEffect(() => {
     if (!animate) return;
     setT(0);
@@ -485,7 +487,7 @@ export const Chart = ({ data, keys = ['y'], colors = ['primary'], height = 220, 
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [data.length, kind, keys.join(','), animate]);
+  }, [data.length, kind, keysKey, animate]);
 
   const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();

@@ -6,33 +6,53 @@
     "dev": "nodemon",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:seed": "npx tsx e2e/helpers/run-seed.ts",
+    "db:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > src/types/database.gen.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.97.1",
     "@google/generative-ai": "^0.24.1",
+    "@sentry/nextjs": "^10.53.1",
     "@supabase/ssr": "^0.5.0",
     "@supabase/supabase-js": "^2.46.0",
+    "@tanstack/react-query": "^5.100.14",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.16.0",
     "nanoid": "^5.1.11",
-    "next": "15.2.9",
+    "next": "^15.5.18",
     "openai": "^6.38.0",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-icons": "^5.6.0",
-    "swr": "^2.4.1"
+    "recharts": "^2.15.4",
+    "sonner": "^2.0.7",
+    "swr": "^2.4.1",
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^4.1.7",
+    "@vitest/ui": "^4.1.7",
     "autoprefixer": "^10.4.20",
     "eslint": "^8",
     "eslint-config-next": "15.2.9",
     "nodemon": "^3.1.14",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.7"
   }
 }

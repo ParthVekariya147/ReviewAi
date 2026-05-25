@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import useSWR from 'swr';
+import { useQuery } from '@tanstack/react-query';
 import { Icon, Input, Avatar } from './ui';
 
 const BASE = '/app/business_dashboard';
@@ -18,9 +18,11 @@ export default function Topbar({ ownerName = '' }: TopbarProps) {
   const router = useRouter();
   const [query, setQuery] = useState('');
 
-  const { data } = useSWR<{ unreadCount: number }>(
-    '/api/notifications?summary=1', fetcher, { refreshInterval: 60_000 },
-  );
+  const { data } = useQuery<{ unreadCount: number }>({
+    queryKey: ['/api/notifications?summary=1'],
+    queryFn:  () => fetcher('/api/notifications?summary=1'),
+    refetchInterval: 60_000,
+  });
   const hasUnread = (data?.unreadCount ?? 0) > 0;
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {

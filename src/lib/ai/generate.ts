@@ -38,13 +38,11 @@ function loadKeys(prefix: string): string[] {
   return keys;
 }
 
-/* Simple in-memory round-robin counter (resets on server restart — fine) */
-const counters: Record<string, number> = {};
-function nextKey(prefix: string, keys: string[]): string {
-  if (keys.length === 1) return keys[0];
-  const idx = (counters[prefix] ?? 0) % keys.length;
-  counters[prefix] = idx + 1;
-  return keys[idx];
+/* Random key selection — works correctly across serverless cold starts.
+   Module-level counters reset on every cold start so round-robin is broken
+   in multi-instance deployments; random selection is stateless and equally fair. */
+function nextKey(_prefix: string, keys: string[]): string {
+  return keys[Math.floor(Math.random() * keys.length)];
 }
 
 /* ── prompt ──────────────────────────────────────────────── */

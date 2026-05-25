@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
   const flattened = (reviews ?? []).map(r => ({
     id:            r.id,
     qr_id:         r.qr_id,
-    campaign_name: (r.qr_codes as unknown as { campaign_name: string } | null)?.campaign_name ?? '—',
+    campaign_name: (Array.isArray(r.qr_codes) ? r.qr_codes[0] : r.qr_codes as { campaign_name: string } | null)?.campaign_name ?? '—',
     rating:        r.rating,
     ai_text:       r.ai_text,
     refreshes:     r.refreshes,

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Toaster } from 'sonner';
+import QueryProvider from '@/components/providers/QueryProvider';
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://reevo.io"),
@@ -51,7 +53,10 @@ export default function RootLayout({
         />
       </head>
       <body suppressHydrationWarning className="antialiased min-h-screen flex flex-col">
-        {children}
+        <QueryProvider>
+          {children}
+        </QueryProvider>
+        <Toaster position="top-right" richColors closeButton />
       </body>
     </html>
   );

@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 import { useState } from 'react';
-import useSWR from 'swr';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Icon, Card, CardHeader, Btn, Badge, Tabs, Switch, Empty } from '../ui';
 import type { NotifItem } from '@/app/api/notifications/route';
 import type { NotifPreferences } from '@/app/api/notifications/preferences/route';
@@ -41,18 +41,27 @@ const PREF_DEFAULTS: NotifPreferences = {
 
 export default function ScreenNotifications() {
   const [tab, setTab] = useState('all');
+  const queryClient = useQueryClient();
 
-  const { data: meData } = useSWR<{ email: string; name: string }>('/api/auth/me', fetcher);
+  const { data: meData } = useQuery<{ email: string; name: string }>({
+    queryKey: ['/api/auth/me'],
+    queryFn:  () => fetcher('/api/auth/me'),
+  });
   const ownerEmail = meData?.email ?? '';
 
-  const { data: notifData, isLoading, mutate } = useSWR<{
+  const { data: notifData, isLoading } = useQuery<{
     notifications: NotifItem[];
     unreadCount: number;
-  }>('/api/notifications', fetcher, { refreshInterval: 60_000 });
+  }>({
+    queryKey: ['/api/notifications'],
+    queryFn:  () => fetcher('/api/notifications'),
+    refetchInterval: 60_000,
+  });
 
-  const { data: prefData, mutate: mutatePref } = useSWR<{ preferences: NotifPreferences }>(
-    '/api/notifications/preferences', fetcher,
-  );
+  const { data: prefData } = useQuery<{ preferences: NotifPreferences }>({
+    queryKey: ['/api/notifications/preferences'],
+    queryFn:  () => fetcher('/api/notifications/preferences'),
+  });
 
   const prefs = prefData?.preferences ?? PREF_DEFAULTS;
   const allItems = notifData?.notifications ?? [];
@@ -64,16 +73,18 @@ export default function ScreenNotifications() {
                        allItems.filter(n => n.cat === tab);
 
   async function markRead(id: string) {
-    mutate(prev => {
-      if (!prev) return prev;
-      const wasUnread = prev.notifications.find(n => n.id === id)?.unread ?? false;
-      return {
-        ...prev,
-        notifications: prev.notifications.map(n => n.id === id ? { ...n, unread: false } : n),
-        unreadCount: Math.max(0, prev.unreadCount - (wasUnread ? 1 : 0)),
-      };
-    }, { revalidate: false });
-
+    queryClient.setQueryData(
+      ['/api/notifications'],
+      (prev: { notifications: NotifItem[]; unreadCount: number } | undefined) => {
+        if (!prev) return prev;
+        const wasUnread = prev.notifications.find(n => n.id === id)?.unread ?? false;
+        return {
+          ...prev,
+          notifications: prev.notifications.map(n => n.id === id ? { ...n, unread: false } : n),
+          unreadCount: Math.max(0, prev.unreadCount - (wasUnread ? 1 : 0)),
+        };
+      },
+    );
     await fetch('/api/notifications', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -85,15 +96,17 @@ export default function ScreenNotifications() {
     const unreadIds = allItems.filter(n => n.unread).map(n => n.id);
     if (unreadIds.length === 0) return;
 
-    mutate(prev => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        notifications: prev.notifications.map(n => ({ ...n, unread: false })),
-        unreadCount: 0,
-      };
-    }, { revalidate: false });
-
+    queryClient.setQueryData(
+      ['/api/notifications'],
+      (prev: { notifications: NotifItem[]; unreadCount: number } | undefined) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          notifications: prev.notifications.map(n => ({ ...n, unread: false })),
+          unreadCount: 0,
+        };
+      },
+    );
     await fetch('/api/notifications', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -102,16 +115,18 @@ export default function ScreenNotifications() {
   }
 
   const handlePrefChange = useCallback(async (key: PrefKey, value: boolean) => {
-    mutatePref(prev => ({
-      preferences: { ...(prev?.preferences ?? PREF_DEFAULTS), [key]: value },
-    }), { revalidate: false });
-
+    queryClient.setQueryData(
+      ['/api/notifications/preferences'],
+      (prev: { preferences: NotifPreferences } | undefined) => ({
+        preferences: { ...(prev?.preferences ?? PREF_DEFAULTS), [key]: value },
+      }),
+    );
     await fetch('/api/notifications/preferences', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ [key]: value }),
     });
-  }, [mutatePref]);
+  }, [queryClient]);
 
   return (
     <div className="lp-page">

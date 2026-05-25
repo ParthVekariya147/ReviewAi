@@ -50,74 +50,34 @@ export async function GET() {
   const plan     = sub?.plan ?? biz.plan ?? 'free';
   const limits   = getPlanLimits(plan);
 
-  // Run all DB reads in parallel
-  const [eventsResult, campaignsResult, campaignBreakdownResult] = await Promise.all([
-    // Aggregated event counts for current period
-    db
-      .from('analytics_events')
-      .select('event_type, qr_id, created_at')
-      .eq('business_id', biz.id)
-      .gte('created_at', sinceIso),
-
-    // Active campaign count
-    db
-      .from('qr_codes')
-      .select('id', { count: 'exact', head: true })
-      .eq('business_id', biz.id)
-      .neq('status', 'archived'),
-
-    // Per-campaign generate counts (for "by campaign" breakdown)
-    db
-      .from('analytics_events')
-      .select('qr_id')
-      .eq('business_id', biz.id)
-      .eq('event_type', 'generate')
-      .gte('created_at', sinceIso),
+  // All aggregations run in DB — no unbounded row fetch into memory (migration 022)
+  const [eventCountsResult, dailyResult, campaignResult, campaignsResult] = await Promise.all([
+    db.rpc('billing_event_counts',      { p_business_id: biz.id, since_ts: sinceIso }),
+    db.rpc('billing_daily_generates',   { p_business_id: biz.id, since_ts: sinceIso }),
+    db.rpc('billing_campaign_generates', { p_business_id: biz.id, since_ts: sinceIso, top_n: 5 }),
+    db.from('qr_codes').select('id', { count: 'exact', head: true }).eq('business_id', biz.id).neq('status', 'archived'),
   ]);
 
-  const events = eventsResult.data ?? [];
+  const eventCounts = (eventCountsResult.data ?? []) as { event_type: string; count: number }[];
+  const reviewsUsed = eventCounts.find(e => e.event_type === 'generate')?.count ?? 0;
+  const scansUsed   = eventCounts.find(e => e.event_type === 'scan')?.count ?? 0;
 
-  // Tally used counts
-  let reviewsUsed = 0;
-  let scansUsed   = 0;
-  const byDay: Record<string, number> = {};
+  const dailySeries = ((dailyResult.data ?? []) as { date: string; count: number }[])
+    .map(r => ({ date: String(r.date), count: Number(r.count) }));
 
-  for (const e of events) {
-    if (e.event_type === 'generate') {
-      reviewsUsed++;
-      const day = (e.created_at as string).slice(0, 10);
-      byDay[day] = (byDay[day] ?? 0) + 1;
-    }
-    if (e.event_type === 'scan') scansUsed++;
-  }
-
-  // Daily series for the chart
-  const dailySeries = Object.entries(byDay)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, count]) => ({ date, count }));
-
-  // Per-campaign breakdown
-  const campaignCounts: Record<string, number> = {};
-  for (const e of (campaignBreakdownResult.data ?? [])) {
-    const qid = e.qr_id as string | null;
-    if (qid) campaignCounts[qid] = (campaignCounts[qid] ?? 0) + 1;
-  }
-
-  // Fetch campaign names for the top 5 by usage
-  const topQrIds = Object.entries(campaignCounts)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 5)
-    .map(([id]) => id);
+  // Fetch campaign names for the top campaigns from RPC results
+  const campaignRows = (campaignResult.data ?? []) as { qr_id: string; count: number }[];
+  const topQrIds = campaignRows.map(r => r.qr_id);
 
   const { data: topCampaigns } = topQrIds.length
     ? await db.from('qr_codes').select('id, campaign_name').in('id', topQrIds)
     : { data: [] };
 
-  const byCampaign = (topCampaigns ?? []).map(q => ({
-    qr_id:         q.id,
-    campaign_name: q.campaign_name,
-    count:         campaignCounts[q.id] ?? 0,
-  })).sort((a, b) => b.count - a.count);
+  const byCampaign = campaignRows.map(r => ({
+    qr_id:         r.qr_id,
+    campaign_name: (topCampaigns ?? []).find(q => q.id === r.qr_id)?.campaign_name ?? null,
+    count:         Number(r.count),
+  }));
 
   // Projected total (linear extrapolation)
   const projectedTotal = Math.round(reviewsUsed / daysElapsed * totalDays);

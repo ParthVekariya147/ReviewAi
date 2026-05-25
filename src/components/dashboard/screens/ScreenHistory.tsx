@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import useSWR from 'swr';
+import { useQuery } from '@tanstack/react-query';
 import { Icon, Card, CardHeader, Btn, Badge, Stat, Progress, Input, Segmented, Select, fmt } from '../ui';
 
 const fetcher = (url: string) =>
@@ -142,9 +142,18 @@ export default function ScreenHistory() {
   const summaryKey = `/api/analytics/summary?days=${days === 'all' ? 90 : parseInt(days)}`;
   const privateKey = `/api/reviews?page=${pvPage}&per_page=${perPage}&status=private_feedback&days=${pvDays}`;
 
-  const { data: reviewsData, isLoading }   = useSWR<{ reviews: Review[]; total: number; page: number }>(reviewsKey, fetcher);
-  const { data: summaryData }              = useSWR<SummaryData>(summaryKey, fetcher);
-  const { data: privateData, isLoading: pvLoading } = useSWR<{ reviews: Review[]; total: number }>(privateKey, fetcher);
+  const { data: reviewsData, isLoading } = useQuery<{ reviews: Review[]; total: number; page: number }>({
+    queryKey: [reviewsKey],
+    queryFn:  () => fetcher(reviewsKey),
+  });
+  const { data: summaryData } = useQuery<SummaryData>({
+    queryKey: [summaryKey],
+    queryFn:  () => fetcher(summaryKey),
+  });
+  const { data: privateData, isLoading: pvLoading } = useQuery<{ reviews: Review[]; total: number }>({
+    queryKey: [privateKey],
+    queryFn:  () => fetcher(privateKey),
+  });
 
   const t           = summaryData?.totals ?? {};
   const generates   = t['generate'] ?? 0;

@@ -8,7 +8,10 @@ import GoogleAuthButton from "./GoogleAuthButton";
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextPath = searchParams.get("next") ?? "/app/business_dashboard";
+  const DASHBOARD = "/app/business_dashboard";
+  const rawNext = searchParams.get("next") ?? "";
+  // Only allow same-origin redirects: must start with "/" but not "//" (protocol-relative)
+  const nextPath = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : DASHBOARD;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);

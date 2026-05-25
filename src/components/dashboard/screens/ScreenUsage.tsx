@@ -1,6 +1,6 @@
 'use client';
 
-import useSWR from 'swr';
+import { useQuery } from '@tanstack/react-query';
 import { Icon, Card, CardHeader, Btn, Badge, Stat, Ring, Chart, Progress, Counter, Switch, fmt } from '../ui';
 
 const fetcher = (url: string) =>
@@ -87,8 +87,10 @@ function FeatureRow({ label, icon, used, max, tone }: {
 // ── main component ────────────────────────────────────────────
 
 export default function ScreenUsage() {
-  const { data, isLoading } = useSWR<UsageData>('/api/billing/usage', fetcher, {
-    refreshInterval: 120_000,
+  const { data, isLoading } = useQuery<UsageData>({
+    queryKey: ['/api/billing/usage'],
+    queryFn:  () => fetcher('/api/billing/usage'),
+    refetchInterval: 120_000,
   });
 
   if (isLoading || !data) {

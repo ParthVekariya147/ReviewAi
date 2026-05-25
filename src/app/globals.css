@@ -43,6 +43,13 @@
 
   --container: 1240px;
   --container-narrow: 880px;
+
+  /* shadcn chart palette */
+  --chart-1: 248 84% 68%;
+  --chart-2: 214 89% 59%;
+  --chart-3: 162 72% 45%;
+  --chart-4: 35 91% 58%;
+  --chart-5: 0 80% 60%;
 }
 
 [data-theme="dark"] {
@@ -62,6 +69,13 @@
   --shadow-md: 0 6px 16px -6px rgba(0,0,0,0.40), 0 2px 6px rgba(0,0,0,0.30);
   --shadow-lg: 0 28px 60px -24px rgba(0,0,0,0.6), 0 12px 28px -16px rgba(0,0,0,0.4);
   --shadow-xl: 0 48px 120px -32px rgba(0,0,0,0.7), 0 24px 60px -24px rgba(0,0,0,0.5);
+
+  /* shadcn chart palette — dark */
+  --chart-1: 248 84% 72%;
+  --chart-2: 214 89% 65%;
+  --chart-3: 162 72% 52%;
+  --chart-4: 35 91% 62%;
+  --chart-5: 0 80% 65%;
 }
 
 * { box-sizing: border-box; }

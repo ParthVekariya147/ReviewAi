@@ -1,0 +1,139 @@
+/* Reevo Admin Console — design tokens
+   Light + Dark, all from the brief. Activated via data-theme on <html>. */
+
+:root,
+:root[data-theme="light"] {
+  --accent: #6E5BFF;
+  --accent-2: #2F7DFB;
+  --accent-soft: #EDE9FF;
+  --accent-ink: #2A1F8F;
+
+  --bg: #FFFFFF;
+  --bg-tint: #F7F7FB;
+  --bg-soft: #FAFAFC;
+  --surface: #FFFFFF;
+  --surface-2: #F4F4F8;
+
+  --border: #ECECF1;
+  --border-strong: #E1E1EA;
+
+  --ink: #0A0A14;
+  --ink-2: #2A2A38;
+  --muted: #6A6A7B;
+  --muted-2: #9494A4;
+
+  --success: #16A34A;
+  --success-soft: #E7F8EE;
+  --success-ink: #06602B;
+  --danger: #DC2626;
+  --danger-soft: #FDECEC;
+  --danger-ink: #8B1212;
+  --warning: #D97706;
+  --warning-soft: #FEF3D7;
+  --warning-ink: #7A4A04;
+  --info: #2F7DFB;
+  --info-soft: #E2EEFF;
+  --info-ink: #0B3A8A;
+
+  --plan-free-bg: #ECECF1;
+  --plan-free-ink: #4A4A58;
+  --plan-starter-bg: #E2EEFF;
+  --plan-starter-ink: #0B3A8A;
+  --plan-pro-bg: #EDE9FF;
+  --plan-pro-ink: #2A1F8F;
+  /* enterprise = gradient */
+
+  --shadow-xs: 0 1px 2px rgba(15,15,30,0.04);
+  --shadow-sm: 0 1px 2px rgba(15,15,30,0.05), 0 2px 6px rgba(15,15,30,0.04);
+  --shadow-md: 0 6px 16px -6px rgba(15,15,30,0.10), 0 2px 6px rgba(15,15,30,0.05);
+  --shadow-lg: 0 28px 60px -24px rgba(40,30,120,0.20), 0 12px 28px -16px rgba(15,15,30,0.10);
+
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
+
+  --accent-gradient: linear-gradient(135deg, #6E5BFF 0%, #2F7DFB 100%);
+  --accent-gradient-soft: linear-gradient(135deg, rgba(110,91,255,0.10) 0%, rgba(47,125,251,0.10) 100%);
+
+  --font-sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+:root[data-theme="dark"] {
+  --accent: #6E5BFF;
+  --accent-2: #2F7DFB;
+  --accent-soft: #1B1A3C;
+  --accent-ink: #C8C1FF;
+
+  --bg: #07080F;
+  --bg-tint: #0B0C16;
+  --bg-soft: #0E0F1B;
+  --surface: #11121F;
+  --surface-2: #181A2A;
+
+  --border: #20223A;
+  --border-strong: #2A2D48;
+
+  --ink: #F4F5FB;
+  --ink-2: #C9CAD8;
+  --muted: #8B8CA0;
+  --muted-2: #5F6178;
+
+  --success: #34D399;
+  --success-soft: #0F2B1F;
+  --success-ink: #6EE7B7;
+  --danger: #F87171;
+  --danger-soft: #2D1313;
+  --danger-ink: #FCA5A5;
+  --warning: #FBBF24;
+  --warning-soft: #2A1F08;
+  --warning-ink: #FCD34D;
+  --info: #60A5FA;
+  --info-soft: #0E1F3D;
+  --info-ink: #93C5FD;
+
+  --plan-free-bg: #20223A;
+  --plan-free-ink: #C9CAD8;
+  --plan-starter-bg: #0E1F3D;
+  --plan-starter-ink: #93C5FD;
+  --plan-pro-bg: #1B1A3C;
+  --plan-pro-ink: #C8C1FF;
+
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.30);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.30), 0 2px 6px rgba(0,0,0,0.30);
+  --shadow-md: 0 6px 16px -6px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.30);
+  --shadow-lg: 0 28px 60px -24px rgba(0,0,0,0.60), 0 12px 28px -16px rgba(0,0,0,0.40);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body {
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "ss02", "cv01", "cv11";
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button { font-family: inherit; }
+input, textarea, select { font-family: inherit; color: inherit; }
+
+/* Density modifier — applied to .rv-shell root */
+.rv-density-compact {
+  --row-h: 44px;
+  --row-pad-y: 10px;
+}
+.rv-density-comfortable, .rv-density-comfy {
+  --row-h: 56px;
+  --row-pad-y: 16px;
+}
+
+/* Accent override — gradient is computed live */
+.rv-accent-purple { --accent: #6E5BFF; --accent-2: #2F7DFB; --accent-gradient: linear-gradient(135deg, #6E5BFF 0%, #2F7DFB 100%); }
+.rv-accent-blue   { --accent: #2F7DFB; --accent-2: #60A5FA; --accent-gradient: linear-gradient(135deg, #1E66E0 0%, #60A5FA 100%); }
+.rv-accent-mono   { --accent: #0A0A14; --accent-2: #4A4A58; --accent-gradient: linear-gradient(135deg, #0A0A14 0%, #4A4A58 100%); }
+:root[data-theme="dark"] .rv-accent-mono { --accent: #F4F5FB; --accent-2: #C9CAD8; --accent-gradient: linear-gradient(135deg, #F4F5FB 0%, #8B8CA0 100%); }

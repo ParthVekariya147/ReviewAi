@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { generateReview } from '@/lib/ai/generate';
 import { rateLimit, getClientIp } from '@/lib/security/rateLimit';
+import { getPlanLimits } from '@/lib/billing/plans';
 import type { ReviewPlatformEntry } from '@/lib/platforms';
 
 /* POST /api/funnel/generate
@@ -13,7 +14,7 @@ import type { ReviewPlatformEntry } from '@/lib/platforms';
 export async function POST(req: NextRequest) {
   /* Rate limit: 20 generations / minute per IP */
   const ip = getClientIp(req);
-  const rl = rateLimit(`funnel-gen:${ip}`, 20, 60_000);
+  const rl = await rateLimit(`funnel-gen:${ip}`, 20, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: 'Too many requests' }, {
       status: 429,
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
       id, business_id,
       businesses (
         name, tagline, language, review_platforms,
-        business_type, review_keywords
+        business_type, review_keywords, plan
       )
     `)
     .eq('token', token)
@@ -62,7 +63,26 @@ export async function POST(req: NextRequest) {
     review_platforms: ReviewPlatformEntry[] | null;
     business_type: string | null;
     review_keywords: string | null;
+    plan: string | null;
   };
+
+  /* Enforce billing quota — count reviews generated in rolling 30-day window */
+  const db = createAdminClient();
+  const limits = getPlanLimits(biz.plan ?? 'free');
+  if (limits.reviews !== -1) {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { count } = await db
+      .from('generated_reviews')
+      .select('id', { count: 'exact', head: true })
+      .eq('business_id', qr.business_id)
+      .gte('created_at', since);
+    if ((count ?? 0) >= limits.reviews) {
+      return NextResponse.json(
+        { error: 'Monthly review limit reached. Please upgrade your plan.' },
+        { status: 402 }
+      );
+    }
+  }
 
   const reviewReq = {
     businessName:   biz.name,
@@ -89,7 +109,6 @@ export async function POST(req: NextRequest) {
   }
 
   /* Save all successful drafts to generated_reviews */
-  const db = createAdminClient();
   const inserts = texts.map(ai_text => ({
     qr_id:       qr.id,
     business_id: qr.business_id,

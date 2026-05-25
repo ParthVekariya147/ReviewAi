@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import useSWR from 'swr';
+import { useQuery } from '@tanstack/react-query';
 import type { IconName } from '../ui';
 import {
   Icon, Card, CardHeader, Btn, Stat, Chart,
@@ -78,11 +78,12 @@ export default function ScreenAnalytics() {
   const [days, setDays] = useState<'7d' | '30d' | '90d'>('30d');
   const daysNum = days === '7d' ? 7 : days === '90d' ? 90 : 30;
 
-  const { data, isLoading } = useSWR<SummaryData>(
-    `/api/analytics/summary?days=${daysNum}`,
-    fetcher,
-    { refreshInterval: 60_000, revalidateOnFocus: true },
-  );
+  const { data, isLoading } = useQuery<SummaryData>({
+    queryKey: [`/api/analytics/summary?days=${daysNum}`],
+    queryFn:  () => fetcher(`/api/analytics/summary?days=${daysNum}`),
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  });
 
   const t = data?.totals ?? {};
   const scansTotal     = t['scan']     ?? 0;

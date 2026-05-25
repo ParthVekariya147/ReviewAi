@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentBusinessId } from '@/lib/businesses/current';
-import { createAdminClient } from '@/lib/supabase/admin';
 
 export type NotifItem = {
   id:     string;
@@ -29,38 +28,48 @@ function relTime(iso: string): string {
    Pass ?summary=1 to return only { unreadCount } for lightweight polling (e.g. Topbar). */
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
-  const db = createAdminClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { businessId, error: bizError } = await getCurrentBusinessId(
-    db as Awaited<ReturnType<typeof createClient>>,
-    user.id,
-  );
+  const { businessId, error: bizError } = await getCurrentBusinessId(supabase, user.id);
   if (bizError || !businessId) {
     return NextResponse.json({ notifications: [], unreadCount: 0 });
   }
 
-  /* ── Fetch IDs already marked read by this business ──────── */
-  const { data: reads } = await db
-    .from('notification_reads')
-    .select('notif_id')
-    .eq('business_id', businessId);
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  /* ── Fetch read-state + all data sources in parallel ─────── */
+  const [
+    { data: reads },
+    { data: reviews },
+    { data: lowRatings },
+    { data: qrCodes },
+  ] = await Promise.all([
+    supabase.from('notification_reads').select('notif_id').eq('business_id', businessId),
+    supabase.from('generated_reviews')
+      .select('id, rating, status, created_at')
+      .eq('business_id', businessId)
+      .in('status', ['generated', 'copied', 'redirected'])
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(10),
+    supabase.from('generated_reviews')
+      .select('id, rating, created_at')
+      .eq('business_id', businessId)
+      .eq('status', 'private_feedback')
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(5),
+    supabase.from('qr_codes')
+      .select('id, campaign_name, status, created_at')
+      .eq('business_id', businessId)
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(5),
+  ]);
 
   const readSet = new Set((reads ?? []).map((r: { notif_id: string }) => r.notif_id));
-
-  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const items: NotifItem[] = [];
-
-  /* ── Recent reviews ──────────────────────────────────────── */
-  const { data: reviews } = await db
-    .from('generated_reviews')
-    .select('id, rating, status, created_at')
-    .eq('business_id', businessId)
-    .in('status', ['generated', 'copied', 'redirected'])
-    .gte('created_at', since)
-    .order('created_at', { ascending: false })
-    .limit(10);
 
   for (const r of reviews ?? []) {
     const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
@@ -81,15 +90,6 @@ export async function GET(req: NextRequest) {
   }
 
   /* ── Private / low-rating feedback ──────────────────────── */
-  const { data: lowRatings } = await db
-    .from('generated_reviews')
-    .select('id, rating, created_at')
-    .eq('business_id', businessId)
-    .eq('status', 'private_feedback')
-    .gte('created_at', since)
-    .order('created_at', { ascending: false })
-    .limit(5);
-
   for (const r of lowRatings ?? []) {
     const id = `private-${r.id}`;
     items.push({
@@ -105,14 +105,6 @@ export async function GET(req: NextRequest) {
   }
 
   /* ── Recently created QR campaigns ──────────────────────── */
-  const { data: qrCodes } = await db
-    .from('qr_codes')
-    .select('id, campaign_name, status, created_at')
-    .eq('business_id', businessId)
-    .gte('created_at', since)
-    .order('created_at', { ascending: false })
-    .limit(5);
-
   for (const qr of qrCodes ?? []) {
     const id = `qr-${qr.id}`;
     items.push({
@@ -146,14 +138,10 @@ export async function GET(req: NextRequest) {
    Body: { ids: string[] } — marks the given notification IDs as read. */
 export async function PATCH(req: NextRequest) {
   const supabase = await createClient();
-  const db = createAdminClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { businessId, error: bizError } = await getCurrentBusinessId(
-    db as Awaited<ReturnType<typeof createClient>>,
-    user.id,
-  );
+  const { businessId, error: bizError } = await getCurrentBusinessId(supabase, user.id);
   if (bizError || !businessId) return NextResponse.json({ error: 'Business not found' }, { status: 404 });
 
   const body = await req.json().catch(() => null) as { ids?: unknown } | null;
@@ -164,7 +152,7 @@ export async function PATCH(req: NextRequest) {
   if (ids.length === 0) return NextResponse.json({ ok: true });
 
   const rows = ids.map(notif_id => ({ business_id: businessId, notif_id }));
-  await db
+  await supabase
     .from('notification_reads')
     .upsert(rows, { onConflict: 'business_id,notif_id', ignoreDuplicates: true });
 

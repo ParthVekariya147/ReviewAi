@@ -8,7 +8,7 @@ import { rateLimit, getClientIp } from '@/lib/security/rateLimit';
    Body: { token: string; rating: number; feedback: string }   */
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
-  const rl = rateLimit(`funnel-private:${ip}`, 10, 60_000);
+  const rl = await rateLimit(`funnel-private:${ip}`, 10, 60_000);
   if (!rl.allowed) {
     return NextResponse.json({ error: 'Too many requests' }, {
       status: 429,

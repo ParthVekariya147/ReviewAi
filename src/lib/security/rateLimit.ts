@@ -1,17 +1,64 @@
 /**
- * Simple sliding-window in-memory rate limiter.
- * Works for single-instance Node.js (API routes).
- * Swap the store for Upstash Redis when scaling horizontally.
+ * Distributed sliding-window rate limiter.
+ *
+ * When UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN are set (production),
+ * rate limits are enforced across all serverless instances via Upstash Redis.
+ *
+ * When those vars are absent (local dev / CI), falls back to an in-memory
+ * sliding window — same interface, single-instance only.
+ *
+ * All callers must await rateLimit(...).
  */
 
-interface Window {
-  count:    number;
-  resetAt:  number;
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis }     from '@upstash/redis';
+import { env }       from '@/lib/env';
+
+// ── Upstash path ────────────────────────────────────────────
+
+let redis: Redis | null = null;
+
+function getRedis(): Redis {
+  if (!redis) {
+    redis = new Redis({
+      url:   env.UPSTASH_URL!,
+      token: env.UPSTASH_TOKEN!,
+    });
+  }
+  return redis;
 }
 
+// Cache one Ratelimit instance per unique (limit, windowMs) pair so we
+// don't construct a new object on every request.
+const limiterCache = new Map<string, Ratelimit>();
+
+function getLimiter(limit: number, windowMs: number): Ratelimit {
+  const k = `${limit}:${windowMs}`;
+  if (!limiterCache.has(k)) {
+    limiterCache.set(k, new Ratelimit({
+      redis:    getRedis(),
+      limiter:  Ratelimit.slidingWindow(limit, `${windowMs} ms`),
+      analytics: false,
+    }));
+  }
+  return limiterCache.get(k)!;
+}
+
+// ── In-memory fallback (dev / single-instance) ───────────────
+
+// Warn in production if Upstash is not configured — in-memory rate limits
+// are per-instance and provide no real DDoS protection on Vercel serverless.
+if (typeof process !== 'undefined' && process.env.NODE_ENV === 'production') {
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+    console.warn('[rateLimit] WARNING: Running in production without Upstash Redis. ' +
+      'Rate limits are in-memory per-instance and will not protect against distributed abuse. ' +
+      'Set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN to enable shared rate limiting.');
+  }
+}
+
+interface Window { count: number; resetAt: number }
 const store = new Map<string, Window>();
 
-/* Prune expired windows every 5 minutes to prevent unbounded growth */
 if (typeof setInterval !== 'undefined') {
   setInterval(() => {
     const now = Date.now();
@@ -21,36 +68,46 @@ if (typeof setInterval !== 'undefined') {
   }, 5 * 60 * 1000);
 }
 
+// ── Public interface ─────────────────────────────────────────
+
 export interface RateLimitResult {
-  allowed:    boolean;
-  remaining:  number;
-  resetAt:    number;
+  allowed:   boolean;
+  remaining: number;
+  resetAt:   number;
 }
 
 /**
- * @param key       Unique identifier (IP + route, or user ID)
- * @param limit     Max requests per window
+ * @param key       Unique identifier — e.g. `"funnel-gen:1.2.3.4"`
+ * @param limit     Max requests allowed per window
  * @param windowMs  Window duration in milliseconds
  */
-export function rateLimit(key: string, limit: number, windowMs: number): RateLimitResult {
+export async function rateLimit(
+  key: string,
+  limit: number,
+  windowMs: number,
+): Promise<RateLimitResult> {
+  if (env.UPSTASH_URL && env.UPSTASH_TOKEN) {
+    const { success, remaining, reset } = await getLimiter(limit, windowMs).limit(key);
+    return { allowed: success, remaining, resetAt: Number(reset) };
+  }
+
+  // In-memory fallback
   const now = Date.now();
   let win = store.get(key);
-
   if (!win || win.resetAt < now) {
     win = { count: 0, resetAt: now + windowMs };
     store.set(key, win);
   }
-
   win.count++;
-  const remaining = Math.max(0, limit - win.count);
-  const allowed   = win.count <= limit;
-
-  return { allowed, remaining, resetAt: win.resetAt };
+  return {
+    allowed:   win.count <= limit,
+    remaining: Math.max(0, limit - win.count),
+    resetAt:   win.resetAt,
+  };
 }
 
 /** Extract a best-effort client IP from a Next.js Request */
 export function getClientIp(req: Request): string {
-  // Trust platform-set headers (cannot be spoofed by clients)
   // Vercel sets x-vercel-forwarded-for from its trusted edge network
   const vercelIp = req.headers.get('x-vercel-forwarded-for');
   if (vercelIp) return vercelIp.split(',')[0].trim();
