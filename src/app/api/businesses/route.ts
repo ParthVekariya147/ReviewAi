@@ -224,6 +224,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Persist the wizard step for mid-onboarding resume
+  const rawStep = (body as Record<string, unknown> | null)?.onboarding_step;
+  if (typeof rawStep === 'number' && Number.isInteger(rawStep) && rawStep >= 0) {
+    await db.from('businesses').update({ onboarding_step: rawStep }).eq('owner_id', user.id);
+  }
+
   const response = NextResponse.json({ business: result.business }, { status: 200 });
   attachBusinessCookie(response, result.business?.id);
   return response;

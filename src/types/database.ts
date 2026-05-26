@@ -18,6 +18,7 @@ export interface Business {
   plan:                  BusinessPlan;
   review_platforms:      { id: string; url: string; enabled: boolean }[];
   onboarding_complete:   boolean;
+  onboarding_step:       number;
   created_at:            string;
   updated_at:            string;
 }

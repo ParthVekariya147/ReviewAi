@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import SetPasswordForm from "./SetPasswordForm";
+import LogoutButton from "./LogoutButton";
 
 export const metadata: Metadata = {
   title: "Set a Password — Reevo",
@@ -22,6 +23,10 @@ export default function SetPasswordPage() {
         <BrandMark />
         <span style={{ fontSize: 17, fontWeight: 600, color: "var(--ink)", letterSpacing: "-0.02em" }}>Reevo</span>
       </Link>
+
+      <div style={{ position: "absolute", top: 28, right: 36 }}>
+        <LogoutButton />
+      </div>
 
       <div style={{ maxWidth: 420, width: "100%" }}>
         <SetPasswordForm />

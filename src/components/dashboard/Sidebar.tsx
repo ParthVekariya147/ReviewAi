@@ -74,7 +74,7 @@ export default function Sidebar({
   async function handleLogout() {
     setLoggingOut(true);
     await fetch('/auth/signout', { method: 'POST' });
-    window.location.href = '/';
+    window.location.href = '/login';
   }
 
   const planLabel = bizPlan === 'pro' ? 'Pro plan' : bizPlan === 'enterprise' ? 'Enterprise' : 'Free plan';
@@ -112,7 +112,7 @@ export default function Sidebar({
         ))}
       </nav>
 
-      {/* Footer with user info + logout menu */}
+      {/* Footer with user info + settings menu */}
       <div className="lp-sidebar-foot" ref={menuRef} style={{ position: 'relative' }}>
         <Avatar name={ownerName || ownerEmail} size={32}/>
         <div className="lp-foot-info">
@@ -151,18 +151,30 @@ export default function Sidebar({
             >
               <Icon name="cog" size={14}/> Settings
             </Link>
-            <div style={{ height: 1, background: 'var(--lp-border)', margin: '4px 0' }}/>
-            <button
-              onClick={handleLogout}
-              disabled={loggingOut}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 14px', fontSize: 13, background: 'none', border: 'none', color: 'var(--lp-danger, #ef4444)', cursor: 'pointer', textAlign: 'left' }}
-              className="lp-menu-row"
-            >
-              <Icon name="arrow" size={14}/>
-              {loggingOut ? 'Logging out…' : 'Log out'}
-            </button>
           </div>
         )}
+      </div>
+
+      {/* Direct logout row — always visible at bottom */}
+      <div style={{ borderTop: '1px solid var(--lp-border)', padding: '10px 12px' }}>
+        <button
+          onClick={handleLogout}
+          disabled={loggingOut}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+            padding: '8px 10px', borderRadius: 8, border: 'none',
+            background: 'none', cursor: loggingOut ? 'not-allowed' : 'pointer',
+            fontSize: 13, color: 'var(--lp-danger, #ef4444)', fontWeight: 500,
+            opacity: loggingOut ? 0.6 : 1, transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.06)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+        >
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          {loggingOut ? 'Logging out…' : 'Log out'}
+        </button>
       </div>
     </aside>
   );

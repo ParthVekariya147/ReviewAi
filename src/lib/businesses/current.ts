@@ -17,6 +17,7 @@ const MODERN_SELECT = [
   'plan',
   'review_platforms',
   'onboarding_complete',
+  'onboarding_step',
   'business_type',
   'review_keywords',
   'created_at',
@@ -104,6 +105,9 @@ export function normalizeBusiness(business: BusinessRow | null): BusinessRow | n
     onboarding_complete: typeof business.onboarding_complete === 'boolean'
       ? business.onboarding_complete
       : false,
+    onboarding_step: typeof business.onboarding_step === 'number'
+      ? business.onboarding_step
+      : 0,
   };
 }
 

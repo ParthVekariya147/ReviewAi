@@ -37,6 +37,7 @@ export default async function OnboardingPage() {
         industry:      user!.user_metadata?.industry      ?? '',
       }}
       existingBusiness={existingBusiness}
+      initialStep={Number(biz?.onboarding_step ?? 0)}
     />
   );
 }

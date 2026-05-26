@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import { Icon, Badge, Field, Input } from '../ui';
 import { PLATFORM_DEFS, type ReviewPlatformEntry } from '@/lib/platforms';
 
@@ -32,6 +33,7 @@ interface ExistingBusiness {
 interface Props {
   user:             UserMeta;
   existingBusiness: ExistingBusiness | null;
+  initialStep?:     number;
 }
 
 // ── industry config ───────────────────────────────────────────
@@ -182,11 +184,11 @@ function FunnelPreview({ name, color, initials }: { name: string; color: string;
 
 // ── main component ────────────────────────────────────────────
 
-export default function ScreenOnboarding({ user, existingBusiness }: Props) {
+export default function ScreenOnboarding({ user, existingBusiness, initialStep = 0 }: Props) {
   const router  = useRouter();
   const ind     = industryConfig(user.industry);
 
-  const [step,      setStep]     = useState(0);
+  const [step,      setStep]     = useState(Math.min(initialStep, STEPS.length - 1));
   const [saving,    setSaving]   = useState(false);
   const [launching, setLaunching] = useState(false);
   const [error,     setError]    = useState('');
@@ -255,6 +257,7 @@ export default function ScreenOnboarding({ user, existingBusiness }: Props) {
       business_type:       form.business_type.trim() || null,
       review_keywords:     form.review_keywords.trim() || null,
       onboarding_complete: false,
+      onboarding_step:     step + 1,
     });
     setSaving(false);
     setStep(s => s + 1);
@@ -289,6 +292,12 @@ export default function ScreenOnboarding({ user, existingBusiness }: Props) {
     });
 
     router.push('/app/business_dashboard');
+  }
+
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.href = '/login';
   }
 
   // ── render ────────────────────────────────────────────────
@@ -335,6 +344,21 @@ export default function ScreenOnboarding({ user, existingBusiness }: Props) {
           <span style={{ fontSize: 12, color: 'var(--lp-fg-muted)', fontVariantNumeric: 'tabular-nums' }}>
             {step + 1} / {STEPS.length}
           </span>
+          <div style={{ height: 16, width: 1, background: 'var(--lp-border)' }} />
+          <span style={{ fontSize: 13, color: 'var(--lp-fg-muted)' }}>{user.email}</span>
+          <button
+            onClick={handleLogout}
+            style={{
+              fontSize: 13, color: 'var(--lp-fg-muted)', background: 'none', border: 'none',
+              cursor: 'pointer', padding: '4px 8px', borderRadius: 6,
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}
+          >
+            <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            Logout
+          </button>
         </div>
       </header>
 
@@ -738,34 +762,20 @@ export default function ScreenOnboarding({ user, existingBusiness }: Props) {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {step < STEPS.length - 1 ? (
-            <>
-              <button
-                onClick={() => setStep(s => Math.min(STEPS.length - 1, s + 1))}
-                disabled={!canAdvance()}
-                style={{
-                  padding: '10px 18px', borderRadius: 8, border: '1px solid var(--lp-border)',
-                  background: 'none', cursor: canAdvance() ? 'pointer' : 'not-allowed',
-                  fontSize: 14, fontWeight: 500, color: 'var(--lp-fg)',
-                  opacity: canAdvance() ? 1 : 0.4,
-                }}
-              >
-                Skip
-              </button>
-              <button
-                onClick={saveAndNext}
-                disabled={!canAdvance() || saving}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  padding: '10px 24px', borderRadius: 8, border: 'none',
-                  background: canAdvance() ? 'var(--lp-primary)' : 'var(--lp-border)',
-                  color: canAdvance() ? '#fff' : 'var(--lp-fg-muted)',
-                  fontSize: 14, fontWeight: 600, cursor: canAdvance() ? 'pointer' : 'not-allowed',
-                  transition: 'all 0.15s',
-                }}
-              >
-                {saving ? 'Saving…' : <>Save &amp; Continue →</>}
-              </button>
-            </>
+            <button
+              onClick={saveAndNext}
+              disabled={!canAdvance() || saving}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '10px 24px', borderRadius: 8, border: 'none',
+                background: canAdvance() ? 'var(--lp-primary)' : 'var(--lp-border)',
+                color: canAdvance() ? '#fff' : 'var(--lp-fg-muted)',
+                fontSize: 14, fontWeight: 600, cursor: canAdvance() ? 'pointer' : 'not-allowed',
+                transition: 'all 0.15s',
+              }}
+            >
+              {saving ? 'Saving…' : <>Save &amp; Continue →</>}
+            </button>
           ) : (
             <button
               onClick={handleLaunch}

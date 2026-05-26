@@ -26,6 +26,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
     redirect(ONBOARDING_PATH);
   }
 
+  // Onboarding has its own full-screen layout — no sidebar or topbar
+  if (isOnboardingRoute) {
+    return <>{children}</>;
+  }
+
   const fullName: string = user.user_metadata?.full_name || '';
   const email: string    = user.email ?? '';
   const ownerName        = fullName || email.split('@')[0];
