@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentBusiness } from '@/lib/businesses/current';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { env } from '@/lib/env';
 
 export async function GET(request: NextRequest) {
@@ -34,10 +35,28 @@ export async function GET(request: NextRequest) {
     const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error && session?.user) {
-      // New user with no business → send to onboarding
-      const { business: biz } = await getCurrentBusiness(supabase, session.user.id);
+      const user = session.user;
 
-      const dest = biz?.onboarding_complete ? next : '/app/business_dashboard/onboarding';
+      // Use admin client to reliably read identities — session.user may have
+      // incomplete app_metadata / identities with the publishable key.
+      const adminClient = createAdminClient();
+      const { data: { user: fullUser } } = await adminClient.auth.admin.getUserById(user.id);
+
+      // Fall back to session user data if admin fetch returns null
+      const resolvedUser = fullUser ?? user;
+      const identities = resolvedUser.identities ?? [];
+      const isGoogleUser =
+        identities.some((i: { provider: string }) => i.provider === "google") ||
+        resolvedUser.app_metadata?.provider === "google";
+      const hasPassword = resolvedUser.user_metadata?.has_password === true;
+
+      if (isGoogleUser && !hasPassword) {
+        return NextResponse.redirect(new URL("/set-password", origin));
+      }
+
+      // New user with no business → send to onboarding
+      const { business: biz } = await getCurrentBusiness(supabase, user.id);
+      const dest = biz?.onboarding_complete ? next : "/app/business_dashboard/onboarding";
       return NextResponse.redirect(new URL(dest, origin));
     }
 
@@ -45,10 +64,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL(next, origin));
     }
 
-    // Code exchange failed — redirect to error page
-    return NextResponse.redirect(
-      new URL(`/login?error=auth_error&message=${encodeURIComponent(error.message)}`, origin)
-    );
+    // Link expired or invalid — show friendly error page
+    return NextResponse.redirect(new URL("/link-expired", origin));
   }
 
   // No code — something went wrong

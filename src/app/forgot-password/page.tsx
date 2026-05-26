@@ -63,7 +63,7 @@ export default function ForgotPasswordPage() {
           </h2>
 
           <p style={{ fontSize: 15, color: "rgba(255,255,255,0.7)", lineHeight: 1.6, maxWidth: 360, margin: "0 0 40px" }}>
-            Enter your email and we&apos;ll send a secure reset link. It expires in 1 hour for your protection.
+            Enter your email and we&apos;ll send a secure reset link. It expires in 5 minutes for your protection.
           </p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

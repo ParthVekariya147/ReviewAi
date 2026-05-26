@@ -38,7 +38,7 @@ const AuthShell = ({ children, side }) => (
 const AuthSideContent = () => (
   <div>
     <span className="eyebrow" style={{ background: "rgba(255,255,255,0.1)", color: "white", borderColor: "rgba(255,255,255,0.2)" }}>
-      <span className="dot" style={{ background: "white", boxShadow: "0 0 0 4px rgba(255,255,255,0.2)" }}/>
+      <span className="dot" style={{ background: "white", boxShadow: "0 0 0 4px rgba(255,255,255,0.2)" }} />
       1,000+ businesses on Reevo
     </span>
     <h2 className="h1" style={{ color: "white", marginTop: 18, fontSize: "clamp(32px, 3.6vw, 44px)" }}>
@@ -243,7 +243,7 @@ const SignupPage = ({ navigate }) => {
                 </div>
               )}
 
-              {step === 1 && (
+              {/* {step === 1 && (
                 <div className="fade-up">
                   <h1 style={{ fontSize: 28, letterSpacing: "-0.02em", margin: 0 }}>About your business</h1>
                   <p style={{ color: "var(--muted)", margin: "8px 0 24px", fontSize: 15 }}>So we can configure your funnel.</p>
@@ -316,7 +316,7 @@ const SignupPage = ({ navigate }) => {
                     </div>
                   </div>
                 </div>
-              )}
+              )} */}
 
               <div className="row" style={{ gap: 10, marginTop: 28 }}>
                 {step > 0 && (
@@ -325,7 +325,7 @@ const SignupPage = ({ navigate }) => {
                 <button type="button" className="btn btn-primary btn-lg" onClick={next} disabled={submitting} style={{ flex: 2, justifyContent: "center" }}>
                   {submitting ? <><span className="spinner" /> Creating workspace…</> :
                     step === totalSteps - 1 ? <>Create my account <Icon name="arrow" size={14} /></> :
-                    <>Continue <Icon name="arrow" size={14} /></>}
+                      <>Continue <Icon name="arrow" size={14} /></>}
                 </button>
               </div>
 

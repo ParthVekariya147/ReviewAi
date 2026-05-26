@@ -52,7 +52,7 @@ export default function ForgotPasswordForm() {
           <p style={{ fontSize: 14, color: "var(--muted)", margin: 0, lineHeight: 1.65 }}>
             We sent a password reset link to{" "}
             <strong style={{ color: "var(--ink)" }}>{email}</strong>.
-            {" "}The link expires in 1 hour.
+            {" "}The link expires in 5 minutes.
           </p>
         </div>
         <div style={{ padding: "14px 20px", background: "var(--bg-soft)", border: "1px solid var(--border)", borderRadius: 10, fontSize: 13, color: "var(--muted)", lineHeight: 1.55 }}>

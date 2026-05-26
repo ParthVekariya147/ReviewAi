@@ -266,21 +266,14 @@ export default function ScreenOnboarding({ user, existingBusiness }: Props) {
   async function handleLaunch() {
     setLaunching(true);
     setError('');
-    const googleUrl = platforms.find(p => p.id === 'google')?.url ?? '';
 
-    // Final upsert with onboarding_complete: true
-    const ok = await upsertBusiness({
-      name:                form.name.trim(),
-      tagline:             form.tagline.trim() || null,
-      brand_color:         form.color,
-      logo_initials:       form.initials || autoInitials(form.name),
-      google_link:         googleUrl || null,
-      review_platforms:    platforms,
-      language:            'en',
-      business_type:       form.business_type.trim() || null,
-      review_keywords:     form.review_keywords.trim() || null,
-      onboarding_complete: true,
+    // Mark onboarding complete — all other fields were saved in saveAndNext
+    const res = await fetch('/api/businesses', {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ onboarding_complete: true }),
     });
+    const ok = res.ok;
 
     if (!ok) {
       setError('Something went wrong. Please try again.');
