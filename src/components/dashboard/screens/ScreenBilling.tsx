@@ -4,6 +4,36 @@ import { useState } from 'react';
 import type { IconName } from '../ui';
 import { Icon, Card, CardHeader, Btn, Badge, Progress, Field, Input, Segmented, Chart, fmt } from '../ui';
 
+async function redirectToCheckout(plan: string, setLoading: (v: string | null) => void) {
+  setLoading(plan);
+  try {
+    const res = await fetch('/api/billing/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan }),
+    });
+    const json = await res.json() as { url?: string; error?: string };
+    if (json.url) { window.location.href = json.url; return; }
+    alert(json.error ?? 'Could not start checkout. Please try again.');
+  } catch {
+    alert('Network error. Please try again.');
+  }
+  setLoading(null);
+}
+
+async function redirectToPortal(setPortalLoading: (v: boolean) => void) {
+  setPortalLoading(true);
+  try {
+    const res = await fetch('/api/billing/portal', { method: 'POST' });
+    const json = await res.json() as { url?: string; error?: string };
+    if (json.url) { window.location.href = json.url; return; }
+    alert(json.error ?? 'Could not open billing portal. Please try again.');
+  } catch {
+    alert('Network error. Please try again.');
+  }
+  setPortalLoading(false);
+}
+
 function PageHeader({ title, sub }: { title: string; sub?: string }) {
   return (
     <div className="lp-page-hd">
@@ -48,6 +78,8 @@ const invoices = [
 
 export default function ScreenBilling() {
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
 
   return (
     <div className="lp-page">
@@ -110,7 +142,16 @@ export default function ScreenBilling() {
               </ul>
               {p.current
                 ? <Btn variant="secondary" className="lp-block" disabled>Current plan</Btn>
-                : <Btn variant={p.v === 'scale' ? 'primary' : 'secondary'} className="lp-block">{p.v === 'starter' ? 'Downgrade' : 'Upgrade'}</Btn>}
+                : (
+                  <Btn
+                    variant={p.v === 'scale' ? 'primary' : 'secondary'}
+                    className="lp-block"
+                    disabled={checkoutLoading !== null}
+                    onClick={() => redirectToCheckout(p.v, setCheckoutLoading)}
+                  >
+                    {checkoutLoading === p.v ? 'Redirecting…' : p.v === 'starter' ? 'Downgrade' : 'Upgrade'}
+                  </Btn>
+                )}
             </div>
           ))}
         </div>
@@ -118,7 +159,20 @@ export default function ScreenBilling() {
 
       <div className="lp-grid lp-grid-2">
         <Card>
-          <CardHeader title="Payment method" action={<Btn variant="ghost" size="sm" icon="edit">Change</Btn>}/>
+          <CardHeader
+            title="Payment method"
+            action={
+              <Btn
+                variant="ghost"
+                size="sm"
+                icon="edit"
+                disabled={portalLoading}
+                onClick={() => redirectToPortal(setPortalLoading)}
+              >
+                {portalLoading ? 'Opening…' : 'Manage billing'}
+              </Btn>
+            }
+          />
           <div className="lp-pay-card">
             <div className="lp-pay-card-brand">VISA</div>
             <div>

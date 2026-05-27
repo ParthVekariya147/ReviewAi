@@ -29,6 +29,13 @@ export const env = {
   UPSTASH_URL:   optional('UPSTASH_REDIS_REST_URL'),
   UPSTASH_TOKEN: optional('UPSTASH_REDIS_REST_TOKEN'),
 
+  // ── Stripe (optional — required for billing features) ────
+  STRIPE_SECRET_KEY:      optional('STRIPE_SECRET_KEY'),
+  STRIPE_WEBHOOK_SECRET:  optional('STRIPE_WEBHOOK_SECRET'),
+  STRIPE_PRICE_STARTER:   optional('STRIPE_PRICE_STARTER'),
+  STRIPE_PRICE_PRO:       optional('STRIPE_PRICE_PRO'),
+  STRIPE_PRICE_ENTERPRISE: optional('STRIPE_PRICE_ENTERPRISE'),
+
   // ── Error monitoring (optional in dev) ────────────────────
   SENTRY_DSN: optional('NEXT_PUBLIC_SENTRY_DSN'),
 
