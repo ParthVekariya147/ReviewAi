@@ -20,6 +20,7 @@ export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const [days, setDays] = useState(30);
 
   useEffect(() => {
@@ -37,7 +38,7 @@ export default function AnalyticsPage() {
       });
 
     return () => controller.abort();
-  }, [days]);
+  }, [days, retryKey]);
 
   return (
     <>
@@ -68,8 +69,14 @@ export default function AnalyticsPage() {
 
       <main style={{ padding: '28px 32px', width: '100%', boxSizing: 'border-box' }}>
         {fetchError && (
-          <div style={{ marginBottom: 16, padding: '10px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--radius-md)', color: '#991B1B', fontSize: 13 }}>
-            Failed to load analytics data. Please try again.
+          <div style={{ marginBottom: 16, padding: '10px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--radius-md)', color: '#991B1B', fontSize: 13, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ flex: 1 }}>Failed to load analytics data.</span>
+            <button
+              onClick={() => setRetryKey(k => k + 1)}
+              style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid #FECACA', background: '#fff', color: '#991B1B', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+            >
+              Retry
+            </button>
           </div>
         )}
         {/* KPI strip */}

@@ -24,6 +24,8 @@ export default function SubscriptionsPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const [search, setSearch] = useState('');
   const [planFilter, setPlanFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -36,21 +38,23 @@ export default function SubscriptionsPage() {
     const { signal } = controller;
 
     setLoading(true);
+    setFetchError(false);
     const sp = new URLSearchParams({ page: String(page), sort: sortKey, dir: sortDir });
     if (search)       sp.set('q', search);
     if (planFilter)   sp.set('plan', planFilter);
     if (statusFilter) sp.set('status', statusFilter);
 
     fetch(`/api/admin/subscriptions?${sp}`, { signal })
-      .then(res => res.ok ? res.json() : null)
-      .then(json => {
-        if (json) { setRows(json.data); setTotal(json.total); setSummary(json.summary); }
+      .then(res => res.ok ? res.json() : Promise.reject(new Error('Failed')))
+      .then(json => { setRows(json.data); setTotal(json.total); setSummary(json.summary); setLoading(false); })
+      .catch(err => {
+        if (err.name === 'AbortError') return;
+        setFetchError(true);
         setLoading(false);
-      })
-      .catch(err => { if (err.name !== 'AbortError') setLoading(false); });
+      });
 
     return () => controller.abort();
-  }, [page, search, planFilter, statusFilter, sortKey, sortDir]);
+  }, [page, search, planFilter, statusFilter, sortKey, sortDir, retryKey]);
 
   function handleSort(key: string) {
     if (key === sortKey) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -94,6 +98,17 @@ export default function SubscriptionsPage() {
       <AdminTopbar breadcrumbs={['Admin', 'Subscriptions']} pageTitle="Subscriptions & Billing"/>
 
       <main style={{ padding: '28px 32px', width: '100%', boxSizing: 'border-box' }}>
+        {fetchError && (
+          <div style={{ marginBottom: 16, padding: '10px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--radius-md)', color: '#991B1B', fontSize: 13, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ flex: 1 }}>Failed to load subscriptions data.</span>
+            <button
+              onClick={() => setRetryKey(k => k + 1)}
+              style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid #FECACA', background: '#fff', color: '#991B1B', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+            >
+              Retry
+            </button>
+          </div>
+        )}
         {/* MRR Summary bar */}
         {summary && (
           <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
