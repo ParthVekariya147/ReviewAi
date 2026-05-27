@@ -44,6 +44,27 @@ export async function GET() {
   return NextResponse.json({ preferences: data ?? DEFAULTS });
 }
 
+export async function DELETE() {
+  const supabase = await createClient();
+  const db = createAdminClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { businessId, error: bizError } = await getCurrentBusinessId(
+    db as Awaited<ReturnType<typeof createClient>>,
+    user.id,
+  );
+  if (bizError || !businessId) return NextResponse.json({ ok: true });
+
+  const { error } = await db
+    .from('notification_preferences')
+    .delete()
+    .eq('business_id', businessId);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
+
 export async function PUT(req: NextRequest) {
   const supabase = await createClient();
   const db = createAdminClient();
