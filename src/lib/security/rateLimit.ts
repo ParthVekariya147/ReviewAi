@@ -46,13 +46,19 @@ function getLimiter(limit: number, windowMs: number): Ratelimit {
 
 // ── In-memory fallback (dev / single-instance) ───────────────
 
-// Warn in production if Upstash is not configured — in-memory rate limits
-// are per-instance and provide no real DDoS protection on Vercel serverless.
-if (typeof process !== 'undefined' && process.env.NODE_ENV === 'production') {
+// Throw at startup in production if Upstash is not configured — in-memory rate limits
+// are per-instance and give zero protection against distributed abuse on Vercel serverless.
+if (
+  typeof process !== 'undefined' &&
+  process.env.NODE_ENV === 'production' &&
+  process.env.NEXT_PHASE !== 'phase-production-build'
+) {
   if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-    console.warn('[rateLimit] WARNING: Running in production without Upstash Redis. ' +
-      'Rate limits are in-memory per-instance and will not protect against distributed abuse. ' +
-      'Set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN to enable shared rate limiting.');
+    throw new Error(
+      '[rateLimit] UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set in production. ' +
+      'In-memory rate limiting is not safe on multi-instance Vercel deployments. ' +
+      'Create a free Upstash Redis database at upstash.com and add the credentials to your environment variables.',
+    );
   }
 }
 
