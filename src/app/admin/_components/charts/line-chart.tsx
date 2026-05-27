@@ -6,6 +6,7 @@ import {
   ChartLegend, ChartLegendContent, type ChartConfig,
 } from '@/components/ui/chart';
 import type { DailyPoint } from '@/types/admin';
+import ChartState from './chart-state';
 
 const chartConfig = {
   scans:   { label: 'Scans',   color: 'hsl(var(--chart-1))' },
@@ -15,16 +16,15 @@ const chartConfig = {
 interface LineChartProps {
   data: DailyPoint[];
   height?: number;
+  isLoading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
-export default function LineChart({ data, height = 300 }: LineChartProps) {
-  if (!data.length) {
-    return (
-      <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: 13 }}>
-        No scan data yet
-      </div>
-    );
-  }
+export default function LineChart({ data, height = 300, isLoading, error, onRetry }: LineChartProps) {
+  if (isLoading) return <ChartState type="loading" height={height} />;
+  if (error)     return <ChartState type="error"   height={height} message={error} onRetry={onRetry} />;
+  if (!data.length) return <ChartState type="empty" height={height} />;
 
   return (
     <ChartContainer config={chartConfig} className="h-[300px] w-full">

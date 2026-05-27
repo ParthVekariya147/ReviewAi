@@ -5,6 +5,7 @@ import {
   ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig,
 } from '@/components/ui/chart';
 import type { FunnelStep } from '@/types/admin';
+import ChartState from './chart-state';
 
 const chartConfig = {
   count: { label: 'Events', color: 'hsl(var(--chart-1))' },
@@ -12,10 +13,15 @@ const chartConfig = {
 
 interface FunnelChartProps {
   data: FunnelStep[];
+  isLoading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
-export default function FunnelChart({ data }: FunnelChartProps) {
-  if (!data.length) return null;
+export default function FunnelChart({ data, isLoading, error, onRetry }: FunnelChartProps) {
+  if (isLoading) return <ChartState type="loading" height={280} />;
+  if (error)     return <ChartState type="error"   height={280} message={error} onRetry={onRetry} />;
+  if (!data.length) return <ChartState type="empty" height={280} />;
 
   return (
     <ChartContainer config={chartConfig} className="h-[280px] w-full">

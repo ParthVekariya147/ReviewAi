@@ -6,6 +6,7 @@ import {
   ChartLegend, ChartLegendContent, type ChartConfig,
 } from '@/components/ui/chart';
 import type { PlanDist } from '@/types/admin';
+import ChartState from './chart-state';
 
 const PLAN_COLORS: Record<string, string> = {
   free:       'var(--color-free)',
@@ -24,10 +25,17 @@ const planConfig = {
 interface DonutChartProps {
   data: PlanDist[];
   size?: number;
+  isLoading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
-export default function DonutChart({ data }: DonutChartProps) {
+export default function DonutChart({ data, isLoading, error, onRetry }: DonutChartProps) {
   const total = data.reduce((s, d) => s + d.count, 0);
+
+  if (isLoading) return <ChartState type="loading" />;
+  if (error)     return <ChartState type="error" message={error} onRetry={onRetry} />;
+  if (!data.length || total === 0) return <ChartState type="empty" />;
 
   // Ensure all 4 plans appear (fill missing with count 0)
   const ALL_PLANS: Array<'free' | 'starter' | 'pro' | 'enterprise'> = ['free', 'starter', 'pro', 'enterprise'];

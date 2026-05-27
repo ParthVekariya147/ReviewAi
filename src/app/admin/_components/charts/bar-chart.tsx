@@ -4,6 +4,7 @@ import { BarChart as RBarChart, Bar, XAxis, YAxis, LabelList } from 'recharts';
 import {
   ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig,
 } from '@/components/ui/chart';
+import ChartState from './chart-state';
 
 interface BarItem {
   label: string;
@@ -13,14 +14,19 @@ interface BarItem {
 interface BarChartProps {
   data: BarItem[];
   color?: string;
+  isLoading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
-export default function BarChart({ data, color }: BarChartProps) {
+export default function BarChart({ data, color, isLoading, error, onRetry }: BarChartProps) {
   const chartConfig: ChartConfig = {
     value: { label: 'Value', color: color ?? 'hsl(var(--chart-1))' },
   };
 
-  if (!data.length) return null;
+  if (isLoading) return <ChartState type="loading" />;
+  if (error)     return <ChartState type="error" message={error} onRetry={onRetry} />;
+  if (!data.length) return <ChartState type="empty" />;
 
   return (
     <ChartContainer config={chartConfig} className="h-[300px] w-full">
