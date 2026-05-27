@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { MdEdit, MdCheck, MdClose, MdPeople, MdAttachMoney, MdTrendingUp } from 'react-icons/md';
+import { MdEdit, MdCheck, MdClose, MdPeople, MdAttachMoney, MdTrendingUp, MdStar, MdStarBorder } from 'react-icons/md';
 import AdminTopbar from '../../_components/shell/topbar';
 import PlanBadge from '../../_components/badges/plan-badge';
 import type { Plan } from '@/types/admin';
@@ -15,10 +15,20 @@ interface PlanRow {
   review_limit: number;
   scan_limit: number;
   campaign_limit: number;
+  is_popular: boolean;
   updated_at: string;
   business_count: number;
   mrr_cents: number;
 }
+
+// Marketing feature bullets shown on /pricing — displayed here so admin can
+// see what features each plan advertises without leaving the config page.
+const PLAN_FEATURES: Record<string, string[]> = {
+  free:       ['1 location', 'Up to 30 reviews / month', '1 static QR code', 'Basic AI suggestions', 'Standard analytics'],
+  starter:    ['Up to 2 locations', 'Up to 500 reviews / month', 'Dynamic QR codes', 'Standard AI suggestions', 'Advanced analytics'],
+  pro:        ['Up to 5 locations', 'Unlimited reviews', 'Dynamic QR codes', 'GPT-4 review suggestions', 'Advanced funnel analytics', 'Custom branding & domain', 'Multi-staff accounts'],
+  enterprise: ['Unlimited locations', 'Unlimited reviews', 'Dynamic + printed QR kit', 'AI suggestions + tone tuning', 'Cohort & device analytics', 'Custom branding & domain', 'SSO + role-based access', 'Priority + dedicated CSM'],
+};
 
 interface DraftLimits {
   amount_cents: string;
@@ -26,6 +36,26 @@ interface DraftLimits {
   review_limit: string;
   scan_limit: string;
   campaign_limit: string;
+}
+
+type DraftErrors = Partial<Record<keyof DraftLimits, string>>;
+
+function validateDraft(draft: DraftLimits): DraftErrors {
+  const errors: DraftErrors = {};
+  const price = parseFloat(draft.amount_cents);
+  if (draft.amount_cents.trim() === '' || isNaN(price) || price < 0) {
+    errors.amount_cents = 'Price must be 0 or greater';
+  }
+  const td = draft.trial_days.trim();
+  if (td !== '') {
+    const n = parseInt(td, 10);
+    if (isNaN(n) || n < 1) errors.trial_days = 'Must be a positive number (or leave blank)';
+  }
+  for (const key of ['review_limit', 'scan_limit', 'campaign_limit'] as const) {
+    const v = parseInt(draft[key], 10);
+    if (isNaN(v) || (v !== -1 && v < 1)) errors[key] = 'Must be −1 (unlimited) or ≥ 1';
+  }
+  return errors;
 }
 
 function fmtMoney(cents: number, currency = 'usd') {
@@ -47,6 +77,8 @@ export default function PlansPage() {
   const [draft, setDraft] = useState<DraftLimits>({ amount_cents: '', trial_days: '', review_limit: '', scan_limit: '', campaign_limit: '' });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [draftErrors, setDraftErrors] = useState<DraftErrors>({});
+  const [togglingPopular, setTogglingPopular] = useState<Plan | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -61,37 +93,56 @@ export default function PlansPage() {
   useEffect(() => { load(); }, [load]);
 
   function startEdit(plan: PlanRow) {
-    setEditing(plan.plan);
-    setDraft({
+    const initial: DraftLimits = {
       amount_cents:   (plan.amount_cents / 100).toFixed(2),
       trial_days:     plan.trial_days != null ? String(plan.trial_days) : '',
       review_limit:   String(plan.review_limit),
       scan_limit:     String(plan.scan_limit),
       campaign_limit: String(plan.campaign_limit),
-    });
+    };
+    setEditing(plan.plan);
+    setDraft(initial);
+    setDraftErrors(validateDraft(initial));
     setSaveError('');
+  }
+
+  function handleDraftChange<K extends keyof DraftLimits>(key: K, value: string) {
+    const next = { ...draft, [key]: value };
+    setDraft(next);
+    setDraftErrors(validateDraft(next));
   }
 
   function cancelEdit() {
     setEditing(null);
+    setDraftErrors({});
     setSaveError('');
   }
 
+  async function togglePopular(plan: Plan, currentlyPopular: boolean) {
+    if (currentlyPopular) return; // already popular — nothing to do
+    setTogglingPopular(plan);
+    await fetch('/api/admin/plans', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan, is_popular: true }),
+    });
+    setTogglingPopular(null);
+    load();
+  }
+
   async function savePlan(plan: Plan) {
-    const amount_cents = Math.round(parseFloat(draft.amount_cents) * 100);
-    if (isNaN(amount_cents) || amount_cents < 0) { setSaveError('Valid price required'); return; }
+    const errors = validateDraft(draft);
+    if (Object.keys(errors).length > 0) {
+      setDraftErrors(errors);
+      return;
+    }
 
+    const amount_cents   = Math.round(parseFloat(draft.amount_cents) * 100);
     const trial_days_raw = draft.trial_days.trim();
-    const trial_days = trial_days_raw === '' ? null : parseInt(trial_days_raw, 10);
-    if (trial_days !== null && (isNaN(trial_days) || trial_days < 1)) { setSaveError('Trial days: positive number or leave blank for no expiry'); return; }
-
+    const trial_days     = trial_days_raw === '' ? null : parseInt(trial_days_raw, 10);
     const review_limit   = parseInt(draft.review_limit, 10);
     const scan_limit     = parseInt(draft.scan_limit, 10);
     const campaign_limit = parseInt(draft.campaign_limit, 10);
-    if ([review_limit, scan_limit, campaign_limit].some(v => isNaN(v) || v < -1)) {
-      setSaveError('Limits must be -1 (unlimited) or a positive number');
-      return;
-    }
 
     setSaving(true);
     setSaveError('');
@@ -162,43 +213,62 @@ export default function PlansPage() {
               return (
                 <div key={plan.plan} style={{
                   background: 'var(--surface)',
-                  border: `1px solid ${plan.plan === 'pro' ? 'var(--accent)' : 'var(--border)'}`,
+                  border: `1px solid ${plan.is_popular ? 'var(--accent)' : 'var(--border)'}`,
                   borderRadius: 'var(--radius-md)', padding: 22,
                   display: 'flex', flexDirection: 'column', gap: 14, position: 'relative',
                 }}>
-                  {plan.plan === 'pro' && (
+                  {plan.is_popular && (
                     <span style={{
                       position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)',
                       background: 'var(--accent)', color: '#fff', fontSize: 10, fontWeight: 700,
                       padding: '2px 10px', borderRadius: 100, letterSpacing: '0.05em', textTransform: 'uppercase',
+                      whiteSpace: 'nowrap',
                     }}>Most Popular</span>
                   )}
 
                   {/* Header */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <PlanBadge plan={plan.plan} />
-                    <button
-                      onClick={() => isEditing ? cancelEdit() : startEdit(plan)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 4, display: 'flex', borderRadius: 6 }}
-                      title={isEditing ? 'Cancel' : 'Edit plan'}
-                    >
-                      {isEditing ? <MdClose size={16} /> : <MdEdit size={16} />}
-                    </button>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button
+                        onClick={() => togglePopular(plan.plan, plan.is_popular)}
+                        disabled={plan.is_popular || togglingPopular !== null}
+                        title={plan.is_popular ? 'This plan is Most Popular' : 'Set as Most Popular'}
+                        style={{
+                          background: 'none', border: 'none', cursor: plan.is_popular ? 'default' : 'pointer',
+                          color: plan.is_popular ? 'var(--accent)' : 'var(--muted)',
+                          padding: 4, display: 'flex', borderRadius: 6,
+                          opacity: togglingPopular === plan.plan ? 0.5 : 1,
+                        }}
+                      >
+                        {plan.is_popular ? <MdStar size={16} /> : <MdStarBorder size={16} />}
+                      </button>
+                      <button
+                        onClick={() => isEditing ? cancelEdit() : startEdit(plan)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 4, display: 'flex', borderRadius: 6 }}
+                        title={isEditing ? 'Cancel' : 'Edit plan'}
+                      >
+                        {isEditing ? <MdClose size={16} /> : <MdEdit size={16} />}
+                      </button>
+                    </div>
                   </div>
 
                   {/* Price */}
                   <div>
                     {isEditing ? (
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                        <span style={{ fontSize: 18, color: 'var(--ink)', fontWeight: 700 }}>$</span>
-                        <input
-                          type="number" min="0" step="0.01" value={draft.amount_cents}
-                          onChange={e => setDraft(d => ({ ...d, amount_cents: e.target.value }))}
-                          autoFocus
-                          style={{ width: 90, padding: '6px 8px', borderRadius: 'var(--radius-sm)', border: '1.5px solid var(--accent)', background: 'var(--bg-tint)', color: 'var(--ink)', fontSize: 16, fontWeight: 700 }}
-                          onKeyDown={e => { if (e.key === 'Escape') cancelEdit(); }}
-                        />
-                        <span style={{ fontSize: 13, color: 'var(--muted)' }}>/mo</span>
+                      <div>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <span style={{ fontSize: 18, color: 'var(--ink)', fontWeight: 700 }}>$</span>
+                          <input
+                            type="number" min="0" step="0.01" value={draft.amount_cents}
+                            onChange={e => handleDraftChange('amount_cents', e.target.value)}
+                            autoFocus
+                            style={{ width: 90, padding: '6px 8px', borderRadius: 'var(--radius-sm)', border: `1.5px solid ${draftErrors.amount_cents ? '#DC2626' : 'var(--accent)'}`, background: 'var(--bg-tint)', color: 'var(--ink)', fontSize: 16, fontWeight: 700 }}
+                            onKeyDown={e => { if (e.key === 'Escape') cancelEdit(); }}
+                          />
+                          <span style={{ fontSize: 13, color: 'var(--muted)' }}>/mo</span>
+                        </div>
+                        {draftErrors.amount_cents && <p style={{ fontSize: 11, color: '#DC2626', margin: '3px 0 0' }}>{draftErrors.amount_cents}</p>}
                       </div>
                     ) : (
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
@@ -236,7 +306,7 @@ export default function PlansPage() {
                     <div style={{ height: 5, background: 'var(--border)', borderRadius: 100, overflow: 'hidden' }}>
                       <div style={{
                         height: '100%', width: `${pct}%`,
-                        background: plan.plan === 'pro' ? 'var(--accent)' : plan.plan === 'enterprise' ? 'linear-gradient(90deg, var(--accent), #7C3AED)' : 'var(--ink-2)',
+                        background: plan.is_popular ? 'var(--accent)' : plan.plan === 'enterprise' ? 'linear-gradient(90deg, var(--accent), #7C3AED)' : 'var(--ink-2)',
                         borderRadius: 100, transition: 'width 0.5s ease',
                       }} />
                     </div>
@@ -256,22 +326,25 @@ export default function PlansPage() {
                           { key: 'scan_limit' as const,     label: 'Scans / mo',     hint: '-1 = unlimited' },
                           { key: 'campaign_limit' as const, label: 'Campaigns max',  hint: '-1 = unlimited' },
                         ].map(({ key, label, hint }) => (
-                          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <label style={{ fontSize: 11, color: 'var(--muted)', width: 96, flexShrink: 0 }}>{label}</label>
-                            <input
-                              type="number"
-                              value={draft[key]}
-                              onChange={e => setDraft(d => ({ ...d, [key]: e.target.value }))}
-                              placeholder={hint}
-                              style={{
-                                flex: 1, padding: '5px 8px',
-                                borderRadius: 'var(--radius-sm)',
-                                border: '1.5px solid var(--border)',
-                                background: 'var(--bg-tint)',
-                                color: 'var(--ink)', fontSize: 13,
-                              }}
-                              onKeyDown={e => { if (e.key === 'Escape') cancelEdit(); }}
-                            />
+                          <div key={key}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <label style={{ fontSize: 11, color: 'var(--muted)', width: 96, flexShrink: 0 }}>{label}</label>
+                              <input
+                                type="number"
+                                value={draft[key]}
+                                onChange={e => handleDraftChange(key, e.target.value)}
+                                placeholder={hint}
+                                style={{
+                                  flex: 1, padding: '5px 8px',
+                                  borderRadius: 'var(--radius-sm)',
+                                  border: `1.5px solid ${draftErrors[key] ? '#DC2626' : 'var(--border)'}`,
+                                  background: 'var(--bg-tint)',
+                                  color: 'var(--ink)', fontSize: 13,
+                                }}
+                                onKeyDown={e => { if (e.key === 'Escape') cancelEdit(); }}
+                              />
+                            </div>
+                            {draftErrors[key] && <p style={{ fontSize: 11, color: '#DC2626', margin: '3px 0 0', paddingLeft: 104 }}>{draftErrors[key]}</p>}
                           </div>
                         ))}
 
@@ -279,15 +352,16 @@ export default function PlansPage() {
 
                         <button
                           onClick={() => savePlan(plan.plan)}
-                          disabled={saving}
+                          disabled={saving || Object.keys(draftErrors).length > 0}
+                          title={Object.keys(draftErrors).length > 0 ? 'Fix validation errors above' : undefined}
                           style={{
                             marginTop: 4, padding: '8px 0',
                             borderRadius: 'var(--radius-sm)',
                             background: 'var(--accent)', border: 'none',
-                            color: '#fff', cursor: saving ? 'not-allowed' : 'pointer',
+                            color: '#fff', cursor: (saving || Object.keys(draftErrors).length > 0) ? 'not-allowed' : 'pointer',
                             fontWeight: 600, fontSize: 13,
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                            opacity: saving ? 0.7 : 1,
+                            opacity: (saving || Object.keys(draftErrors).length > 0) ? 0.55 : 1,
                           }}
                         >
                           <MdCheck size={15} /> {saving ? 'Saving…' : 'Save changes'}
@@ -314,6 +388,23 @@ export default function PlansPage() {
                       </div>
                     )}
                   </div>
+
+                  {/* Marketing features preview */}
+                  {!isEditing && (PLAN_FEATURES[plan.plan] ?? []).length > 0 && (
+                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Marketing Features
+                      </div>
+                      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        {(PLAN_FEATURES[plan.plan] ?? []).map((f, i) => (
+                          <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: 'var(--ink-2)' }}>
+                            <span style={{ width: 14, height: 14, borderRadius: 999, background: 'color-mix(in srgb, var(--accent) 12%, transparent)', color: 'var(--accent)', display: 'grid', placeItems: 'center', flexShrink: 0, fontSize: 9 }}>✓</span>
+                            {f}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               );
             })}
