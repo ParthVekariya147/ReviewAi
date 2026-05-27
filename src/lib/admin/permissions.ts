@@ -18,6 +18,7 @@ const CAPABILITIES: Record<AdminRole, Set<string>> = {
     'analytics.read',
     'abuse.dismiss',
     'plans.edit',
+    'settings.edit',
   ]),
   admin: new Set([
     'business.suspend',
