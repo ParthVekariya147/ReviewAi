@@ -3,6 +3,10 @@ import type Stripe from 'stripe';
 import { getStripe } from '@/lib/billing/stripe';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { env } from '@/lib/env';
+import { sendEmail } from '@/lib/email/send';
+import { invoicePaidEmailHtml } from '@/lib/email/templates/invoice-paid';
+import { paymentFailedEmailHtml } from '@/lib/email/templates/payment-failed';
+import { subscriptionCancelledEmailHtml } from '@/lib/email/templates/subscription-cancelled';
 
 /**
  * POST /api/webhooks/stripe
@@ -65,6 +69,7 @@ async function handleEvent(event: Stripe.Event) {
     case 'invoice.paid': {
       const invoice = event.data.object as Stripe.Invoice;
       await recordInvoice(db, invoice, 'paid');
+      await sendInvoicePaidEmail(db, invoice);
       break;
     }
     case 'invoice.payment_failed': {
@@ -78,6 +83,7 @@ async function handleEvent(event: Stripe.Event) {
           .update({ status: 'past_due', updated_at: new Date().toISOString() })
           .eq('provider_id', subId);
       }
+      await sendPaymentFailedEmail(db, invoice);
       break;
     }
     default:
@@ -145,6 +151,7 @@ async function cancelSubscription(db: DbClient, sub: Stripe.Subscription) {
   const businessId = sub.metadata?.business_id;
   if (businessId) {
     await db.from('businesses').update({ plan: 'free' }).eq('id', businessId);
+    await sendCancellationEmail(db, sub, businessId);
   }
 }
 
@@ -175,4 +182,79 @@ async function recordInvoice(db: DbClient, invoice: Stripe.Invoice, status: stri
   };
 
   await db.from('invoices').upsert(record, { onConflict: 'provider_id' });
+}
+
+// ── Email helpers ────────────────────────────────────────────────────────────
+
+async function getBusinessEmail(db: DbClient, businessId: string): Promise<{ email: string; name: string } | null> {
+  const { data } = await db
+    .from('businesses')
+    .select('name, owner_email:user_profiles(email)')
+    .eq('id', businessId)
+    .maybeSingle();
+  if (!data) return null;
+  const emailRow = Array.isArray(data.owner_email) ? data.owner_email[0] : data.owner_email;
+  const email = (emailRow as { email?: string } | null)?.email;
+  if (!email) return null;
+  return { email, name: (data as { name: string }).name };
+}
+
+async function sendInvoicePaidEmail(db: DbClient, invoice: Stripe.Invoice) {
+  const subId = getInvoiceSubscriptionId(invoice);
+  if (!subId) return;
+  const { data: sub } = await db.from('subscriptions').select('business_id').eq('provider_id', subId).maybeSingle();
+  if (!sub?.business_id) return;
+  const biz = await getBusinessEmail(db, sub.business_id as string);
+  if (!biz) return;
+
+  const amount = new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency ?? 'usd' }).format((invoice.amount_paid ?? invoice.amount_due ?? 0) / 100);
+  const fmt = (ts: number) => new Date(ts * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  await sendEmail({
+    to:      biz.email,
+    subject: `Your Reevo receipt — ${amount}`,
+    html:    invoicePaidEmailHtml({
+      businessName: biz.name,
+      email:        biz.email,
+      amount,
+      invoiceId:    invoice.id,
+      periodStart:  fmt(invoice.period_start),
+      periodEnd:    fmt(invoice.period_end),
+      invoicePdf:   invoice.invoice_pdf,
+      appUrl:       env.APP_URL,
+    }),
+  }).catch(e => console.error('[webhook/stripe] Failed to send invoice-paid email:', e));
+}
+
+async function sendPaymentFailedEmail(db: DbClient, invoice: Stripe.Invoice) {
+  const subId = getInvoiceSubscriptionId(invoice);
+  if (!subId) return;
+  const { data: sub } = await db.from('subscriptions').select('business_id').eq('provider_id', subId).maybeSingle();
+  if (!sub?.business_id) return;
+  const biz = await getBusinessEmail(db, sub.business_id as string);
+  if (!biz) return;
+
+  const amount = new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency ?? 'usd' }).format((invoice.amount_due ?? 0) / 100);
+
+  await sendEmail({
+    to:      biz.email,
+    subject: 'Action required: Reevo payment failed',
+    html:    paymentFailedEmailHtml({ businessName: biz.name, email: biz.email, amount, appUrl: env.APP_URL }),
+  }).catch(e => console.error('[webhook/stripe] Failed to send payment-failed email:', e));
+}
+
+async function sendCancellationEmail(db: DbClient, sub: Stripe.Subscription, businessId: string) {
+  const biz = await getBusinessEmail(db, businessId);
+  if (!biz) return;
+
+  const periodEnd = sub.items.data[0]?.current_period_end;
+  const endDate = periodEnd
+    ? new Date(periodEnd * 1000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : 'the end of your billing period';
+
+  await sendEmail({
+    to:      biz.email,
+    subject: 'Your Reevo subscription has been cancelled',
+    html:    subscriptionCancelledEmailHtml({ businessName: biz.name, email: biz.email, endDate, appUrl: env.APP_URL }),
+  }).catch(e => console.error('[webhook/stripe] Failed to send cancellation email:', e));
 }

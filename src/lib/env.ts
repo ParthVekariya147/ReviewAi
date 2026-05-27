@@ -29,6 +29,10 @@ export const env = {
   UPSTASH_URL:   optional('UPSTASH_REDIS_REST_URL'),
   UPSTASH_TOKEN: optional('UPSTASH_REDIS_REST_TOKEN'),
 
+  // ── Resend (optional — required for transactional email) ─
+  RESEND_API_KEY: optional('RESEND_API_KEY'),
+  EMAIL_FROM:     optional('EMAIL_FROM') ?? 'Reevo <noreply@reevo.io>',
+
   // ── Stripe (optional — required for billing features) ────
   STRIPE_SECRET_KEY:      optional('STRIPE_SECRET_KEY'),
   STRIPE_WEBHOOK_SECRET:  optional('STRIPE_WEBHOOK_SECRET'),

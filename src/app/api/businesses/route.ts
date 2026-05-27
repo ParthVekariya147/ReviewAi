@@ -8,6 +8,8 @@ import {
   normalizeLegacyBusiness,
   shouldUseLegacyBusinessFallback,
 } from '@/lib/businesses/current';
+import { sendEmail } from '@/lib/email/send';
+import { welcomeEmailHtml } from '@/lib/email/templates/welcome';
 import {
   sanitizeString, sanitizeColor, sanitizeLang,
   sanitizeRating, sanitizeUrl, sanitizePlatforms,
@@ -15,6 +17,14 @@ import {
 import { isValidGoogleReviewUrl } from '@/lib/validation/urls';
 
 const VALID_LENGTHS = new Set(['short', 'medium', 'long']);
+
+const INSTAGRAM_RE = /^[a-z0-9._]{1,30}$/i;
+
+function sanitizeInstagramHandle(raw: unknown): string | null {
+  if (raw === null || raw === undefined || raw === '') return null;
+  const s = String(raw).replace(/^@/, '').toLowerCase().trim();
+  return INSTAGRAM_RE.test(s) ? s : null;
+}
 
 function sanitizeReviewLengths(raw: unknown): string[] {
   if (!Array.isArray(raw)) return ['short', 'medium'];
@@ -242,6 +252,15 @@ export async function POST(req: NextRequest) {
     await db.from('businesses').update({ onboarding_step: rawStep }).eq('owner_id', user.id);
   }
 
+  // Send welcome email on first onboarding completion
+  if (payload.onboarding_complete && result.business && user.email) {
+    sendEmail({
+      to:      user.email,
+      subject: `Welcome to Reevo, ${payload.name}!`,
+      html:    welcomeEmailHtml({ businessName: payload.name, email: user.email, appUrl: process.env.NEXT_PUBLIC_APP_URL ?? 'https://reevo.io' }),
+    }).catch(e => console.error('[POST /api/businesses] Failed to send welcome email:', e));
+  }
+
   const response = NextResponse.json({ business: result.business }, { status: 200 });
   attachBusinessCookie(response, result.business?.id);
   return response;
@@ -270,9 +289,10 @@ export async function PATCH(req: NextRequest) {
   if ('review_keywords'          in body) updates.review_keywords          = sanitizeString(body.review_keywords, 300) || null;
   if ('owner_name'               in body) updates.owner_name               = sanitizeString(body.owner_name, 100) || null;
   if ('review_length_preference' in body) updates.review_length_preference = sanitizeReviewLengths(body.review_length_preference);
-  if ('funnel_style'   in body) updates.funnel_style   = sanitizeString(body.funnel_style, 20) || 'elegant';
-  if ('funnel_heading' in body) updates.funnel_heading = sanitizeString(body.funnel_heading, 200) || null;
-  if ('funnel_sub'     in body) updates.funnel_sub     = sanitizeString(body.funnel_sub, 300) || null;
+  if ('funnel_style'      in body) updates.funnel_style      = sanitizeString(body.funnel_style, 20) || 'elegant';
+  if ('funnel_heading'    in body) updates.funnel_heading    = sanitizeString(body.funnel_heading, 200) || null;
+  if ('funnel_sub'        in body) updates.funnel_sub        = sanitizeString(body.funnel_sub, 300) || null;
+  if ('instagram_handle'  in body) updates.instagram_handle  = sanitizeInstagramHandle(body.instagram_handle);
 
   for (const key of Object.keys(updates)) {
     if (updates[key] === undefined) delete updates[key];
@@ -387,14 +407,15 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
-  // funnel_style/heading/sub are not in the upsert_business RPC, so save them directly.
-  const funnelUpdates: Record<string, unknown> = {};
-  if ('funnel_style'   in updates) funnelUpdates.funnel_style   = updates.funnel_style;
-  if ('funnel_heading' in updates) funnelUpdates.funnel_heading = updates.funnel_heading;
-  if ('funnel_sub'     in updates) funnelUpdates.funnel_sub     = updates.funnel_sub;
-  if (Object.keys(funnelUpdates).length > 0) {
-    await db.from('businesses').update(funnelUpdates).eq('owner_id', user.id);
-    if (result.business) Object.assign(result.business, funnelUpdates);
+  // Fields not in the upsert_business RPC — save directly.
+  const extraUpdates: Record<string, unknown> = {};
+  if ('funnel_style'     in updates) extraUpdates.funnel_style     = updates.funnel_style;
+  if ('funnel_heading'   in updates) extraUpdates.funnel_heading   = updates.funnel_heading;
+  if ('funnel_sub'       in updates) extraUpdates.funnel_sub       = updates.funnel_sub;
+  if ('instagram_handle' in updates) extraUpdates.instagram_handle = updates.instagram_handle;
+  if (Object.keys(extraUpdates).length > 0) {
+    await db.from('businesses').update(extraUpdates).eq('owner_id', user.id);
+    if (result.business) Object.assign(result.business, extraUpdates);
   }
 
   const response = NextResponse.json({ business: result.business });
