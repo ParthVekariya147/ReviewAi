@@ -12,7 +12,7 @@ export async function GET() {
 
   const [pricesRes, busRes] = await Promise.all([
     db.from('plan_prices')
-      .select('plan, amount_cents, currency, label, trial_days, review_limit, scan_limit, campaign_limit, updated_at')
+      .select('plan, amount_cents, currency, label, trial_days, review_limit, scan_limit, campaign_limit, is_popular, updated_at')
       .order('amount_cents'),
     db.from('businesses').select('plan'),
   ]);
@@ -26,8 +26,9 @@ export async function GET() {
 
   const data = (pricesRes.data ?? []).map(p => ({
     ...p,
+    is_popular:     p.is_popular ?? false,
     business_count: counts[p.plan] ?? 0,
-    mrr_cents: p.amount_cents * (counts[p.plan] ?? 0),
+    mrr_cents:      p.amount_cents * (counts[p.plan] ?? 0),
   }));
 
   return NextResponse.json({ data });
@@ -45,7 +46,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const { plan, amount_cents, trial_days, review_limit, scan_limit, campaign_limit } = body;
+  const { plan, amount_cents, trial_days, review_limit, scan_limit, campaign_limit, is_popular } = body;
 
   if (!plan || !VALID_PLANS.includes(plan)) {
     return NextResponse.json({ error: `plan must be one of: ${VALID_PLANS.join(', ')}` }, { status: 400 });
@@ -76,13 +77,25 @@ export async function PATCH(request: NextRequest) {
     }
   }
 
+  if (is_popular !== undefined) {
+    if (typeof is_popular !== 'boolean') {
+      return NextResponse.json({ error: 'is_popular must be a boolean' }, { status: 400 });
+    }
+    patch.is_popular = is_popular;
+  }
+
   if (Object.keys(patch).length === 1) {
     return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
   }
 
   const db = createAdminClient();
-  const { error } = await db.from('plan_prices').update(patch).eq('plan', plan);
 
+  // When marking a plan as popular, unset all others first (only one popular at a time)
+  if (is_popular === true) {
+    await db.from('plan_prices').update({ is_popular: false }).neq('plan', plan);
+  }
+
+  const { error } = await db.from('plan_prices').update(patch).eq('plan', plan);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await writeAuditLog(ctx.user.id, 'plan.limits_updated', 'plan', plan, { ...patch, admin: ctx.user.email });

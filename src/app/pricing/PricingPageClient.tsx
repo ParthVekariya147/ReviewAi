@@ -5,6 +5,19 @@ import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 
+/* ── Public plan shape (matches /api/public/plans) ── */
+export interface PlanApiRow {
+  plan:            string;
+  amount_cents:    number;
+  currency:        string;
+  label:           string;
+  trial_days:      number | null;
+  review_limit:    number;
+  scan_limit:      number;
+  campaign_limit:  number;
+  is_popular:      boolean;
+}
+
 /* ── Icons ── */
 const CheckIcon = () => (
   <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
@@ -22,95 +35,81 @@ const ArrowIcon = () => (
   </svg>
 );
 
-/* ── Plans data ── */
-const PLANS = [
-  {
-    id: "starter",
-    name: "Starter",
-    sub: "For trying Reevo with one location.",
-    monthly: 0, yearly: 0,
-    cta: "Start free",
-    popular: false,
-    features: [
-      ["1 location", true],
-      ["Up to 30 reviews / month", true],
-      ["1 static QR code", true],
-      ["Basic AI suggestions", true],
-      ["Standard analytics", true],
-      ["Custom branding", false],
-      ["Multi-location", false],
-      ["Priority support", false],
-    ],
-  },
-  {
-    id: "growth",
-    name: "Growth",
-    sub: "For single-location businesses serious about reviews.",
-    monthly: 29, yearly: 23,
-    cta: "Start 14-day trial",
-    popular: true,
-    features: [
-      ["Up to 5 locations", true],
-      ["Unlimited reviews", true],
-      ["Dynamic QR codes", true],
-      ["GPT-4 review suggestions", true],
-      ["Advanced funnel analytics", true],
-      ["Custom branding & domain", true],
-      ["Multi-staff accounts", true],
-      ["Priority support", false],
-    ],
-  },
-  {
-    id: "business",
-    name: "Business",
-    sub: "For multi-location and franchise teams.",
-    monthly: 89, yearly: 71,
-    cta: "Start 14-day trial",
-    popular: false,
-    features: [
-      ["Unlimited locations", true],
-      ["Unlimited reviews", true],
-      ["Dynamic + printed QR kit", true],
-      ["AI suggestions + tone tuning", true],
-      ["Cohort & device analytics", true],
-      ["Custom branding & domain", true],
-      ["SSO + role-based access", true],
-      ["Priority + dedicated CSM", true],
-    ],
-  },
-];
+/* ── Static display metadata per DB plan ID ── */
+const PLAN_META: Record<string, { displayName: string; sub: string; cta: string }> = {
+  free:       { displayName: "Starter",  sub: "For trying Reevo with one location.",                      cta: "Start free"        },
+  pro:        { displayName: "Growth",   sub: "For single-location businesses serious about reviews.",    cta: "Start 14-day trial" },
+  enterprise: { displayName: "Business", sub: "For multi-location and franchise teams.",                  cta: "Start 14-day trial" },
+};
 
-/* ── Full comparison rows ── */
+/* ── Static feature bullets per DB plan ID ── */
+const PLAN_FEATURES: Record<string, [string, boolean][]> = {
+  free: [
+    ["1 location",              true ],
+    ["Up to 30 reviews / month",true ],
+    ["1 static QR code",        true ],
+    ["Basic AI suggestions",    true ],
+    ["Standard analytics",      true ],
+    ["Custom branding",         false],
+    ["Multi-location",          false],
+    ["Priority support",        false],
+  ],
+  pro: [
+    ["Up to 5 locations",          true ],
+    ["Unlimited reviews",          true ],
+    ["Dynamic QR codes",           true ],
+    ["GPT-4 review suggestions",   true ],
+    ["Advanced funnel analytics",  true ],
+    ["Custom branding & domain",   true ],
+    ["Multi-staff accounts",       true ],
+    ["Priority support",           false],
+  ],
+  enterprise: [
+    ["Unlimited locations",       true],
+    ["Unlimited reviews",         true],
+    ["Dynamic + printed QR kit",  true],
+    ["AI suggestions + tone tuning", true],
+    ["Cohort & device analytics", true],
+    ["Custom branding & domain",  true],
+    ["SSO + role-based access",   true],
+    ["Priority + dedicated CSM",  true],
+  ],
+};
+
+// Plans shown on the marketing page — in display order
+const MARKETING_PLAN_IDS = ["free", "pro", "enterprise"];
+
+/* ── Full comparison table (static marketing copy) ── */
 const COMPARISON_GROUPS = [
   { group: "Funnels", items: [
-    ["Locations", "1", "Up to 5", "Unlimited"],
-    ["QR codes", "1 static", "Unlimited dynamic", "Unlimited dynamic + printed kit"],
-    ["Active campaigns", "1", "10", "Unlimited"],
-    ["Branded domain", false, true, true],
+    ["Locations",         "1",        "Up to 5",           "Unlimited"],
+    ["QR codes",          "1 static", "Unlimited dynamic", "Unlimited dynamic + printed kit"],
+    ["Active campaigns",  "1",        "10",                "Unlimited"],
+    ["Branded domain",    false,      true,                true],
   ]},
   { group: "AI", items: [
-    ["Reviews per month", "30", "Unlimited", "Unlimited"],
-    ["AI suggestion model", "GPT-3.5", "GPT-4", "GPT-4 + tone training"],
-    ["Languages", "1", "8", "24"],
-    ["Custom voice training", false, false, true],
+    ["Reviews per month",    "30",      "Unlimited",         "Unlimited"],
+    ["AI suggestion model",  "GPT-3.5", "GPT-4",            "GPT-4 + tone training"],
+    ["Languages",            "1",       "8",                 "24"],
+    ["Custom voice training",false,     false,               true],
   ]},
   { group: "Analytics", items: [
-    ["Real-time dashboards", true, true, true],
-    ["Funnel breakdown", "Basic", "Advanced", "Advanced + cohorts"],
-    ["Device & geo analytics", false, true, true],
-    ["Export to CSV / API", false, true, true],
+    ["Real-time dashboards",  true,     true,                true],
+    ["Funnel breakdown",      "Basic",  "Advanced",          "Advanced + cohorts"],
+    ["Device & geo analytics",false,    true,                true],
+    ["Export to CSV / API",   false,    true,                true],
   ]},
   { group: "Workspace", items: [
-    ["Team seats", "1", "5", "Unlimited"],
-    ["Role-based access", false, false, true],
-    ["SSO (Google, SAML)", false, false, true],
-    ["Audit log", false, false, true],
+    ["Team seats",            "1",      "5",                 "Unlimited"],
+    ["Role-based access",     false,    false,               true],
+    ["SSO (Google, SAML)",    false,    false,               true],
+    ["Audit log",             false,    false,               true],
   ]},
   { group: "Support", items: [
-    ["Email support", true, true, true],
-    ["Priority support", false, true, true],
-    ["Dedicated CSM", false, false, true],
-    ["Onboarding session", false, "30 min", "2 hours"],
+    ["Email support",         true,     true,                true],
+    ["Priority support",      false,    true,                true],
+    ["Dedicated CSM",         false,    false,               true],
+    ["Onboarding session",    false,    "30 min",            "2 hours"],
   ]},
 ];
 
@@ -159,8 +158,30 @@ function CompValue({ v }: { v: boolean | string }) {
   return <span style={{ fontSize: 13, color: "var(--ink-2)" }}>{v}</span>;
 }
 
-export default function PricingPageClient() {
+export default function PricingPageClient({ plans }: { plans: PlanApiRow[] }) {
   const [yearly, setYearly] = useState(true);
+
+  // Build a lookup map by plan ID
+  const planMap = Object.fromEntries(plans.map(p => [p.plan, p]));
+
+  // Resolve the 3 marketing plans from DB data, falling back to sensible defaults
+  const marketingPlans = MARKETING_PLAN_IDS.map(id => {
+    const db = planMap[id];
+    const meta = PLAN_META[id];
+    return {
+      id,
+      name:      meta?.displayName ?? id,
+      sub:       meta?.sub ?? "",
+      cta:       meta?.cta ?? "Get started",
+      monthly:   db ? db.amount_cents / 100 : 0,
+      yearly:    db ? Math.round((db.amount_cents / 100) * 0.8) : 0,
+      popular:   db?.is_popular ?? false,
+      features:  PLAN_FEATURES[id] ?? [],
+    };
+  });
+
+  // Comparison header prices (yearly selected by default)
+  const headerPrices = marketingPlans.map(p => yearly ? p.yearly : p.monthly);
 
   return (
     <>
@@ -194,7 +215,7 @@ export default function PricingPageClient() {
 
               {/* Cards */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 18, width: "100%" }} className="pricing-grid">
-                {PLANS.map((plan) => {
+                {marketingPlans.map((plan) => {
                   const price = yearly ? plan.yearly : plan.monthly;
                   return (
                     <div key={plan.id} className="card lift" style={{
@@ -259,10 +280,12 @@ export default function PricingPageClient() {
             <div className="card" style={{ padding: 0, overflow: "hidden", minWidth: 540 }}>
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", padding: "20px 24px", background: "var(--surface)", borderBottom: "1px solid var(--border)", position: "sticky", top: 60, zIndex: 5 }}>
                 <div style={{ fontSize: 13, color: "var(--muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.05em" }}>FEATURE</div>
-                {(["Starter", "Growth", "Business"] as const).map((n, i) => (
-                  <div key={n}>
-                    <div style={{ fontWeight: 600, fontSize: 15, color: i === 1 ? "var(--accent)" : "var(--ink)" }}>{n}</div>
-                    <div style={{ fontSize: 12, color: "var(--muted)" }}>{i === 0 ? "Free" : i === 1 ? "$23/mo" : "$71/mo"}</div>
+                {marketingPlans.map((p, i) => (
+                  <div key={p.id}>
+                    <div style={{ fontWeight: 600, fontSize: 15, color: p.popular ? "var(--accent)" : "var(--ink)" }}>{p.name}</div>
+                    <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                      {headerPrices[i] === 0 ? "Free" : `$${headerPrices[i]}/mo`}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -282,7 +305,7 @@ export default function PricingPageClient() {
                 </div>
               ))}
             </div>
-            </div>{/* /comparison-scroll */}
+            </div>
           </div>
         </section>
 
@@ -308,10 +331,10 @@ export default function PricingPageClient() {
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {[
                   { icon: "building", label: "Multi-tenant workspaces" },
-                  { icon: "shield", label: "SOC 2 Type II + GDPR" },
-                  { icon: "users", label: "SSO + SAML + SCIM" },
-                  { icon: "bolt", label: "99.99% SLA" },
-                  { icon: "link", label: "API + webhook integrations" },
+                  { icon: "shield",   label: "SOC 2 Type II + GDPR" },
+                  { icon: "users",    label: "SSO + SAML + SCIM" },
+                  { icon: "bolt",     label: "99.99% SLA" },
+                  { icon: "link",     label: "API + webhook integrations" },
                 ].map((item) => (
                   <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10 }}>
                     <EnterpriseIcon name={item.icon} />
@@ -347,7 +370,7 @@ export default function PricingPageClient() {
 
       <style>{`
         @media (max-width: 1000px) { .pricing-grid { grid-template-columns: 1fr !important; } }
-        @media (max-width: 900px) { .ent-grid { grid-template-columns: 1fr !important; } }
+        @media (max-width: 900px)  { .ent-grid { grid-template-columns: 1fr !important; } }
       `}</style>
     </>
   );
@@ -356,9 +379,9 @@ export default function PricingPageClient() {
 function EnterpriseIcon({ name }: { name: string }) {
   const props = { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: "var(--accent)" as string, strokeWidth: "1.6", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   if (name === "building") return <svg {...props}><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg>;
-  if (name === "shield") return <svg {...props}><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>;
-  if (name === "users") return <svg {...props}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>;
-  if (name === "bolt") return <svg {...props}><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>;
+  if (name === "shield")   return <svg {...props}><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>;
+  if (name === "users")    return <svg {...props}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>;
+  if (name === "bolt")     return <svg {...props}><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>;
   return <svg {...props}><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>;
 }
 

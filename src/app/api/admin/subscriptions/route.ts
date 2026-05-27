@@ -66,14 +66,44 @@ export async function GET(request: NextRequest) {
     rows = rows.filter(r => r.business_name.toLowerCase().includes(q) || r.owner_email.toLowerCase().includes(q));
   }
 
-  // Summary metrics
-  // TODO(perf): replace with COUNT GROUP BY aggregate after migration 018 is run
-  const { data: allSubs } = await db.from('subscriptions').select('plan, status, cancel_at_end').limit(5000);
-  const mrr = (allSubs ?? []).filter(s => s.status === 'active').reduce((sum, s) => sum + (PLAN_PRICES[s.plan] ?? 0), 0);
-  const churn_risk = (allSubs ?? []).filter(s => s.cancel_at_end).length;
-  const past_due   = (allSubs ?? []).filter(s => s.status === 'past_due').length;
-  const plan_counts: Record<string, number> = {};
-  (allSubs ?? []).forEach(s => { plan_counts[s.plan] = (plan_counts[s.plan] ?? 0) + 1; });
+  // Summary metrics — one COUNT query per bucket, all in parallel
+  const [
+    churnResult,
+    pastDueResult,
+    freeTotalResult,
+    starterTotalResult,
+    proTotalResult,
+    enterpriseTotalResult,
+    activeFreeResult,
+    activeStarterResult,
+    activeProResult,
+    activeEnterpriseResult,
+  ] = await Promise.all([
+    db.from('subscriptions').select('id', { count: 'exact', head: true }).eq('cancel_at_end', true),
+    db.from('subscriptions').select('id', { count: 'exact', head: true }).eq('status', 'past_due'),
+    db.from('subscriptions').select('id', { count: 'exact', head: true }).eq('plan', 'free'),
+    db.from('subscriptions').select('id', { count: 'exact', head: true }).eq('plan', 'starter'),
+    db.from('subscriptions').select('id', { count: 'exact', head: true }).eq('plan', 'pro'),
+    db.from('subscriptions').select('id', { count: 'exact', head: true }).eq('plan', 'enterprise'),
+    db.from('subscriptions').select('id', { count: 'exact', head: true }).eq('plan', 'free').eq('status', 'active'),
+    db.from('subscriptions').select('id', { count: 'exact', head: true }).eq('plan', 'starter').eq('status', 'active'),
+    db.from('subscriptions').select('id', { count: 'exact', head: true }).eq('plan', 'pro').eq('status', 'active'),
+    db.from('subscriptions').select('id', { count: 'exact', head: true }).eq('plan', 'enterprise').eq('status', 'active'),
+  ]);
+
+  const mrr =
+    (activeFreeResult.count       ?? 0) * PLAN_PRICES.free +
+    (activeStarterResult.count    ?? 0) * PLAN_PRICES.starter +
+    (activeProResult.count        ?? 0) * PLAN_PRICES.pro +
+    (activeEnterpriseResult.count ?? 0) * PLAN_PRICES.enterprise;
+  const churn_risk = churnResult.count    ?? 0;
+  const past_due   = pastDueResult.count  ?? 0;
+  const plan_counts: Record<string, number> = {
+    free:       freeTotalResult.count       ?? 0,
+    starter:    starterTotalResult.count    ?? 0,
+    pro:        proTotalResult.count        ?? 0,
+    enterprise: enterpriseTotalResult.count ?? 0,
+  };
 
   return NextResponse.json({
     data: rows,

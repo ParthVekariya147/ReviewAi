@@ -78,7 +78,7 @@ export default function ScreenAnalytics() {
   const [days, setDays] = useState<'7d' | '30d' | '90d'>('30d');
   const daysNum = days === '7d' ? 7 : days === '90d' ? 90 : 30;
 
-  const { data, isLoading } = useQuery<SummaryData>({
+  const { data, isLoading, error, refetch } = useQuery<SummaryData>({
     queryKey: [`/api/analytics/summary?days=${daysNum}`],
     queryFn:  () => fetcher(`/api/analytics/summary?days=${daysNum}`),
     refetchInterval: 60_000,
@@ -138,6 +138,20 @@ export default function ScreenAnalytics() {
     { value: '30d', label: 'Last 30 days' },
     { value: '90d', label: 'Last 90 days' },
   ];
+
+  if (error) {
+    return (
+      <div className="lp-page">
+        <PageHeader title="Analytics" sub="Customer review funnel, by the numbers" />
+        <Card>
+          <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--lp-fg-muted)' }}>
+            <div style={{ marginBottom: 12 }}>Could not load analytics data.</div>
+            <Btn variant="ghost" onClick={() => refetch()}>Retry</Btn>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="lp-page">

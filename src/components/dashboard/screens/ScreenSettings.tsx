@@ -19,6 +19,7 @@ interface Business {
   language:                 string;
   plan:                     string;
   review_length_preference: string[];
+  instagram_handle:         string | null;
 }
 
 interface UserInfo { id: string; email: string; full_name: string }
@@ -29,6 +30,8 @@ interface Props {
 }
 
 // ── helpers ───────────────────────────────────────────────────
+
+const INSTAGRAM_RE = /^[a-z0-9._]{1,30}$/i;
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -132,6 +135,8 @@ export default function ScreenSettings({ initialBusiness, user }: Props) {
   const [pwdState,   setPwdState]   = useState<PwdState>('idle');
   const [pwdError,   setPwdError]   = useState('');
 
+  const [instagramError, setInstagramError] = useState('');
+
   // Single form state covering all editable business fields
   const [form, setForm] = useState({
     name:                     initialBusiness?.name                     ?? '',
@@ -142,6 +147,7 @@ export default function ScreenSettings({ initialBusiness, user }: Props) {
     min_rating_for_google:    initialBusiness?.min_rating_for_google    ?? 4,
     language:                 initialBusiness?.language                 ?? 'en',
     review_length_preference: (initialBusiness?.review_length_preference ?? ['short', 'medium']) as ReviewLength[],
+    instagram_handle:         initialBusiness?.instagram_handle         ?? '',
   });
 
   function set<K extends keyof typeof form>(key: K, value: typeof form[K]) {
@@ -163,7 +169,11 @@ export default function ScreenSettings({ initialBusiness, user }: Props) {
 
   async function save() {
     setSaveState('saving');
-    const ok = await patchBusiness(form);
+    const payload = {
+      ...form,
+      instagram_handle: form.instagram_handle.trim() || null,
+    };
+    const ok = await patchBusiness(payload);
     setSaveState(ok ? 'saved' : 'error');
     if (ok) setTimeout(() => setSaveState('idle'), 2500);
   }
@@ -244,6 +254,40 @@ export default function ScreenSettings({ initialBusiness, user }: Props) {
                   </Field>
                   <Field label="Tagline">
                     <Input value={form.tagline} onChange={e => set('tagline', e.target.value)} />
+                  </Field>
+                  <Field label="Instagram handle" hint="Shown on the thank-you screen after review">
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <span style={{
+                        position:      'absolute',
+                        left:          10,
+                        fontSize:      14,
+                        color:         'var(--lp-fg-muted, #94a3b8)',
+                        pointerEvents: 'none',
+                        userSelect:    'none',
+                      }}>@</span>
+                      <Input
+                        value={form.instagram_handle}
+                        style={{ paddingLeft: 24 }}
+                        onChange={e => {
+                          const v = e.target.value.replace(/^@/, '').toLowerCase();
+                          set('instagram_handle', v);
+                          setInstagramError('');
+                        }}
+                        onBlur={() => {
+                          const v = form.instagram_handle;
+                          if (v && !INSTAGRAM_RE.test(v)) {
+                            setInstagramError('Letters, numbers, dots and underscores only (max 30 chars)');
+                          } else {
+                            setInstagramError('');
+                          }
+                        }}
+                      />
+                    </div>
+                    {instagramError && (
+                      <div style={{ fontSize: 12, color: 'var(--lp-danger, #ef4444)', marginTop: 4 }}>
+                        {instagramError}
+                      </div>
+                    )}
                   </Field>
                 </div>
               </Card>

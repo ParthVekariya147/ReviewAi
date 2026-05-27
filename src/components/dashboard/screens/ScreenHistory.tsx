@@ -142,7 +142,7 @@ export default function ScreenHistory() {
   const summaryKey = `/api/analytics/summary?days=${days === 'all' ? 90 : parseInt(days)}`;
   const privateKey = `/api/reviews?page=${pvPage}&per_page=${perPage}&status=private_feedback&days=${pvDays}`;
 
-  const { data: reviewsData, isLoading } = useQuery<{ reviews: Review[]; total: number; page: number }>({
+  const { data: reviewsData, isLoading, error: reviewsError, refetch: reviewsRefetch } = useQuery<{ reviews: Review[]; total: number; page: number }>({
     queryKey: [reviewsKey],
     queryFn:  () => fetcher(reviewsKey),
   });
@@ -289,6 +289,11 @@ export default function ScreenHistory() {
             {isLoading ? (
               <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--lp-fg-muted)' }}>
                 Loading reviews…
+              </div>
+            ) : reviewsError ? (
+              <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--lp-fg-muted)' }}>
+                <div style={{ marginBottom: 12 }}>Could not load reviews.</div>
+                <Btn variant="ghost" size="sm" onClick={() => reviewsRefetch()}>Retry</Btn>
               </div>
             ) : reviews.length === 0 ? (
               <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--lp-fg-muted)' }}>

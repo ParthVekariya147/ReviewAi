@@ -148,7 +148,7 @@ export default function ScreenQR() {
   const [patching,   setPatching]   = useState(false);
 
   const queryClient = useQueryClient();
-  const { data: qrData }       = useQuery<{ codes: QRCode[] }>({
+  const { data: qrData, isLoading: qrLoading, error: qrError, refetch: qrRefetch } = useQuery<{ codes: QRCode[] }>({
     queryKey: ['/api/qr'],
     queryFn:  () => fetcher('/api/qr'),
   });
@@ -200,6 +200,20 @@ export default function ScreenQR() {
     if (!current) return;
     const next = current.status === 'live' ? 'paused' : 'live';
     await patch('status', next);
+  }
+
+  if (qrError) {
+    return (
+      <div className="lp-page">
+        <PageHeader title="QR codes" sub="Generate, customize and track QR campaigns" />
+        <Card>
+          <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--lp-fg-muted)' }}>
+            <div style={{ marginBottom: 12 }}>Could not load QR campaigns.</div>
+            <Btn variant="ghost" onClick={() => qrRefetch()}>Retry</Btn>
+          </div>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -321,7 +335,7 @@ export default function ScreenQR() {
                 />
               </div>
 
-              {!qrData ? <SkeletonList /> : (
+              {qrLoading ? <SkeletonList /> : (
                 <div className="lp-camp-list">
                   {codes.length === 0 ? (
                     <div style={{ padding: '20px 18px', color: 'var(--lp-fg-muted)', fontSize: 13 }}>

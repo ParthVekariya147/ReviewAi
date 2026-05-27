@@ -48,13 +48,12 @@ export async function GET(request: NextRequest) {
   const pageRows = withSearch ? rows.slice(offset, offset + PAGE_SIZE) : rows;
 
   // Summary: use count-only queries to avoid 1000-row truncation
-  const [{ count: openCount }, { count: paidCount }, { data: paidAmounts }] = await Promise.all([
+  const [{ count: openCount }, { count: paidCount }, { data: revenueData }] = await Promise.all([
     db.from('invoices').select('id', { count: 'exact', head: true }).eq('status', 'open'),
     db.from('invoices').select('id', { count: 'exact', head: true }).eq('status', 'paid'),
-    // TODO(perf): replace with SUM(amount_cents) aggregate after migration 018 is run
-    db.from('invoices').select('amount_cents').eq('status', 'paid').limit(5000),
+    db.from('invoices').select('amount_cents.sum()').eq('status', 'paid').single(),
   ]);
-  const totalRevenue = (paidAmounts ?? []).reduce((s, i) => s + i.amount_cents, 0);
+  const totalRevenue = ((revenueData as Record<string, number> | null)?.sum) ?? 0;
 
   return NextResponse.json({
     data: pageRows,

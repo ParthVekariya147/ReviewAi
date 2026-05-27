@@ -22,6 +22,7 @@ export default async function SettingsPage() {
     review_length_preference: Array.isArray(currentBusiness.review_length_preference)
       ? (currentBusiness.review_length_preference as string[])
       : ['short', 'medium'],
+    instagram_handle: (currentBusiness.instagram_handle as string | null) ?? null,
   } : null;
 
   return (

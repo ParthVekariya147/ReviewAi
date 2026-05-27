@@ -18,6 +18,7 @@ export type BusinessData = {
   funnelStyle?:       string | null;
   funnelHeading?:     string | null;
   funnelSub?:         string | null;
+  instagramHandle?:   string | null;
 };
 
 type Step = 'landing' | 'rating' | 'generating' | 'review' | 'private' | 'success';
@@ -130,21 +131,27 @@ async function updateReviewStatus(
   action: 'copy' | 'redirect',
   platform?: string,
 ): Promise<void> {
-  await fetch('/api/funnel/status', {
-    method:    'PATCH',
-    headers:   { 'Content-Type': 'application/json' },
-    body:      JSON.stringify({ token, review_id: reviewId, action, platform }),
-    keepalive: true,
-  }).catch(() => {});
+  try {
+    const res = await fetch('/api/funnel/status', {
+      method:    'PATCH',
+      headers:   { 'Content-Type': 'application/json' },
+      body:      JSON.stringify({ token, review_id: reviewId, action, platform }),
+      keepalive: true,
+    });
+    if (!res.ok) throw new Error(`funnel/status ${res.status}`);
+  } catch (err) {
+    console.error('[FunnelFlow] updateReviewStatus failed', err);
+  }
 }
 
 async function submitPrivateFeedback(token: string, rating: number, feedback: string): Promise<void> {
-  await fetch('/api/funnel/private', {
+  const res = await fetch('/api/funnel/private', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify({ token, rating, feedback }),
     keepalive: true,
   });
+  if (!res.ok) throw new Error(`funnel/private ${res.status}`);
 }
 
 /* ── Star SVG ─────────────────────────────────────────── */
@@ -183,10 +190,11 @@ export default function FunnelFlow({
   const [editedText, setEditedText] = useState('');
   const [copied, setCopied]         = useState(false);
   const [copiedReviewId, setCopiedReviewId] = useState<string | null>(null);
-  const [genError, setGenError]     = useState('');
-  const [privateFb, setPrivateFb]   = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted]   = useState(false);
+  const [genError, setGenError]         = useState('');
+  const [privateFb, setPrivateFb]       = useState('');
+  const [feedbackError, setFeedbackError] = useState('');
+  const [submitting, setSubmitting]     = useState(false);
+  const [submitted, setSubmitted]       = useState(false);
   const [visible, setVisible]       = useState(true);
 
   const currentDraft = drafts[draftIdx] ?? null;
@@ -305,10 +313,16 @@ export default function FunnelFlow({
   async function handlePrivateSubmit() {
     if (!privateFb.trim()) return;
     setSubmitting(true);
+    setFeedbackError('');
     track('private_feedback', { rating, feedback: privateFb });
-    await submitPrivateFeedback(token, rating, privateFb).catch(() => {/* fail silently */});
-    setSubmitted(true);
-    setTimeout(() => goTo('success'), 700);
+    try {
+      await submitPrivateFeedback(token, rating, privateFb);
+      setSubmitted(true);
+      setTimeout(() => goTo('success'), 700);
+    } catch {
+      setSubmitting(false);
+      setFeedbackError('Could not send. Please try again.');
+    }
   }
 
   /* Redirect from success if Google tab was opened */
@@ -536,6 +550,11 @@ export default function FunnelFlow({
                   <><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg> Sent!</>
                 ) : t(lang, 'submitFeedback')}
               </button>
+              {feedbackError && (
+                <p style={{ color: '#ef4444', fontSize: 13, marginTop: 8, textAlign: 'center' }}>
+                  {feedbackError}
+                </p>
+              )}
             </>
           )}
 
@@ -553,6 +572,24 @@ export default function FunnelFlow({
                   ? t(lang, 'successGoogle')
                   : t(lang, 'successSub')}
               </p>
+              {business.instagramHandle && (
+                <div style={{ marginTop: 20, textAlign: 'center' }}>
+                  <p style={{ fontSize: 12, color: sv.sub, marginBottom: 6 }}>Follow us on Instagram</p>
+                  <a
+                    href={`https://instagram.com/${business.instagramHandle}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      fontSize:       15,
+                      fontWeight:     600,
+                      color:          '#E1306C',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    @{business.instagramHandle}
+                  </a>
+                </div>
+              )}
             </div>
           )}
 

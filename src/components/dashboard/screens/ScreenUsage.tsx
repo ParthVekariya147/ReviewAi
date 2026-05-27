@@ -87,19 +87,33 @@ function FeatureRow({ label, icon, used, max, tone }: {
 // ── main component ────────────────────────────────────────────
 
 export default function ScreenUsage() {
-  const { data, isLoading } = useQuery<UsageData>({
+  const { data, isLoading, error, refetch } = useQuery<UsageData>({
     queryKey: ['/api/billing/usage'],
     queryFn:  () => fetcher('/api/billing/usage'),
     refetchInterval: 120_000,
   });
 
-  if (isLoading || !data) {
+  if (isLoading) {
     return (
       <div className="lp-page">
         <PageHeader title="Usage" sub="Track quota consumption across reviews, scans and AI calls" />
         <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--lp-fg-muted)' }}>
           Loading usage data…
         </div>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="lp-page">
+        <PageHeader title="Usage" sub="Track quota consumption across reviews, scans and AI calls" />
+        <Card>
+          <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--lp-fg-muted)' }}>
+            <div style={{ marginBottom: 12 }}>Could not load usage data.</div>
+            <Btn variant="ghost" onClick={() => refetch()}>Retry</Btn>
+          </div>
+        </Card>
       </div>
     );
   }
