@@ -26,7 +26,7 @@ export default function ScreenQRRequest() {
   const biz = bizData?.business;
 
   const [name, setName] = useState('Sidewalk Sign');
-  const [url, setUrl] = useState('reevo.io/r/sw-1q4');
+  const [slug, setSlug] = useState('sidewalk-sign');
   const [color, setColor] = useState('#6366F1');
   const [bg, setBg] = useState('#FFFFFF');
   const [size, setSize] = useState(220);
@@ -34,7 +34,9 @@ export default function ScreenQRRequest() {
   const [format, setFormat] = useState('standalone');
   const [orderPrint, setOrderPrint] = useState(true);
   const [qty, setQty] = useState(50);
-  const fullUrl = `https://${url}`;
+  const appOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+  const appHost   = typeof window !== 'undefined' ? window.location.host   : '';
+  const fullUrl   = `${appOrigin}/r/${slug}`;
 
   return (
     <div className="lp-page">
@@ -58,7 +60,7 @@ export default function ScreenQRRequest() {
                 <Input value={name} onChange={(e) => setName(e.target.value)} icon="qr"/>
               </Field>
               <Field label="Slug">
-                <Input value={url} onChange={(e) => setUrl(e.target.value)} prefix="reevo.io/r/"/>
+                <Input value={slug} onChange={(e) => setSlug(e.target.value)} prefix={`${appHost}/r/`}/>
               </Field>
               <Field label="Assign to location">
                 <Select value="nw" onChange={() => {}} options={[
@@ -157,7 +159,7 @@ export default function ScreenQRRequest() {
               <QRCanvas value={fullUrl} size={size} color={color} bg={bg} radius={16}/>
               <div className="lp-print-foot">
                 <div className="lp-print-biz">{biz?.name ?? 'Your Business'}</div>
-                <div className="lp-print-url">{url}</div>
+                <div className="lp-print-url">{appHost}/r/{slug}</div>
               </div>
               <div className="lp-print-stars">
                 {[1,2,3,4,5].map(i => <span key={i}>★</span>)}

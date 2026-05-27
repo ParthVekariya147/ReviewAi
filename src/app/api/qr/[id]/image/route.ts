@@ -4,11 +4,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getCurrentBusinessId } from '@/lib/businesses/current';
 import { generateQRPng, generateQRSvg } from '@/lib/qr/generate';
 import { rateLimit, getClientIp } from '@/lib/security/rateLimit';
-import { env } from '@/lib/env';
 
 type Params = Promise<{ id: string }>;
-
-const BASE_URL = env.APP_URL;
 
 /* GET /api/qr/[id]/image?format=png|svg&color=%23000000&bg=%23FFFFFF&size=512
    Returns the QR image for a campaign. Auth required (owner only).             */
@@ -68,7 +65,7 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
     .trim()
     .slice(0, 100) || 'qr';
 
-  const qrUrl = `${BASE_URL}/r/${code.token}`;
+  const qrUrl = `${req.nextUrl.origin}/r/${code.token}`;
 
   try {
     if (format === 'svg') {
