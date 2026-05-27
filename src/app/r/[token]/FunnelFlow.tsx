@@ -12,6 +12,7 @@ export type BusinessData = {
   reviewPlatforms:    { id: string; url: string; enabled: boolean }[];       // multi-platform support
   brandColor:         string;
   logoInitials:       string;
+  logoUrl:            string | null;
   minRatingForGoogle: number;
   language:           string;
 };
@@ -331,8 +332,11 @@ export default function FunnelFlow({
 
         {/* Header — always visible */}
         <div className="rv-funnel-header">
-          <div className="rv-funnel-logo" style={{ background: brand }}>
-            {business.logoInitials}
+          <div className="rv-funnel-logo" style={{ background: brand, overflow: 'hidden', padding: business.logoUrl ? 0 : undefined }}>
+            {business.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={business.logoUrl} alt={business.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            ) : business.logoInitials}
           </div>
           <div>
             <p className="rv-funnel-biz-name">{business.name}</p>

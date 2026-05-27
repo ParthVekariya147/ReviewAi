@@ -38,6 +38,7 @@ interface SidebarProps {
   bizInitials?: string;
   bizColor?:    string;
   bizPlan?:     string;
+  bizLogoUrl?:  string | null;
   ownerName?:   string;
   ownerEmail?:  string;
 }
@@ -47,6 +48,7 @@ export default function Sidebar({
   bizInitials = '',
   bizColor    = '#6366F1',
   bizPlan     = 'free',
+  bizLogoUrl  = null,
   ownerName   = '',
   ownerEmail  = '',
 }: SidebarProps) {
@@ -87,8 +89,13 @@ export default function Sidebar({
       </div>
 
       <div className="lp-biz-select">
-        <div className="lp-biz-logo" style={{ background: bizColor }}>
-          {bizInitials || bizName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase() || '??'}
+        <div className="lp-biz-logo" style={{ background: bizColor, overflow: 'hidden', padding: bizLogoUrl ? 0 : undefined }}>
+          {bizLogoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={bizLogoUrl} alt={bizName} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          ) : (
+            bizInitials || bizName.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase() || '??'
+          )}
         </div>
         <div className="lp-biz-info">
           <div className="lp-biz-name lp-truncate">{bizName || 'Your business'}</div>

@@ -13,6 +13,14 @@ import {
   sanitizeRating, sanitizeUrl, sanitizePlatforms,
 } from '@/lib/security/sanitize';
 
+const VALID_LENGTHS = new Set(['short', 'medium', 'long']);
+
+function sanitizeReviewLengths(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return ['short', 'medium'];
+  const filtered = raw.filter((v): v is string => typeof v === 'string' && VALID_LENGTHS.has(v));
+  return filtered.length > 0 ? filtered : ['short', 'medium'];
+}
+
 type ApiError = { code?: string | null; message?: string | null } | null;
 
 type BusinessPayload = {
@@ -254,8 +262,9 @@ export async function PATCH(req: NextRequest) {
   if ('language'              in body) updates.language              = sanitizeLang(body.language);
   if ('review_platforms'      in body) updates.review_platforms      = sanitizePlatforms(body.review_platforms);
   if ('onboarding_complete'   in body) updates.onboarding_complete   = Boolean(body.onboarding_complete);
-  if ('business_type'         in body) updates.business_type         = sanitizeString(body.business_type, 60) || null;
-  if ('review_keywords'       in body) updates.review_keywords       = sanitizeString(body.review_keywords, 300) || null;
+  if ('business_type'             in body) updates.business_type             = sanitizeString(body.business_type, 60) || null;
+  if ('review_keywords'           in body) updates.review_keywords           = sanitizeString(body.review_keywords, 300) || null;
+  if ('review_length_preference'  in body) updates.review_length_preference  = sanitizeReviewLengths(body.review_length_preference);
 
   for (const key of Object.keys(updates)) {
     if (updates[key] === undefined) delete updates[key];
@@ -330,6 +339,17 @@ export async function PATCH(req: NextRequest) {
 
   if (result.error) {
     return NextResponse.json({ error: result.error.message, code: result.error.code }, { status: 500 });
+  }
+
+  // review_length_preference is not in the upsert_business RPC, so save it directly.
+  if ('review_length_preference' in updates) {
+    await db
+      .from('businesses')
+      .update({ review_length_preference: updates.review_length_preference })
+      .eq('owner_id', user.id);
+    if (result.business) {
+      result.business.review_length_preference = updates.review_length_preference;
+    }
   }
 
   const response = NextResponse.json({ business: result.business });

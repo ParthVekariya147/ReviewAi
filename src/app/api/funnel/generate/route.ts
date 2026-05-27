@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { generateReview } from '@/lib/ai/generate';
+import { generateReview, ReviewLength } from '@/lib/ai/generate';
 import { rateLimit, getClientIp } from '@/lib/security/rateLimit';
 import { getPlanLimits } from '@/lib/billing/plans';
 import type { ReviewPlatformEntry } from '@/lib/platforms';
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       id, business_id,
       businesses (
         name, tagline, language, review_platforms,
-        business_type, review_keywords, plan
+        business_type, review_keywords, plan, review_length_preference
       )
     `)
     .eq('token', token)
@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
     business_type: string | null;
     review_keywords: string | null;
     plan: string | null;
+    review_length_preference: string[] | null;
   };
 
   /* Enforce billing quota — count reviews generated in rolling 30-day window */
@@ -84,6 +85,14 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const validLengths: ReviewLength[] = ['short', 'medium', 'long'];
+  const prefLengths: ReviewLength[] = Array.isArray(biz.review_length_preference) && biz.review_length_preference.length > 0
+    ? (biz.review_length_preference as string[]).filter((v): v is ReviewLength => validLengths.includes(v as ReviewLength))
+    : ['short', 'medium'];
+  const pickedLength = prefLengths.length > 0
+    ? prefLengths[Math.floor(Math.random() * prefLengths.length)]
+    : 'medium';
+
   const reviewReq = {
     businessName:   biz.name,
     tagline:        biz.tagline        ?? '',
@@ -91,6 +100,7 @@ export async function POST(req: NextRequest) {
     reviewKeywords: biz.review_keywords ?? '',
     rating,
     language:       biz.language ?? 'en',
+    length:         pickedLength,
   };
 
   /* Generate 2 drafts in parallel */

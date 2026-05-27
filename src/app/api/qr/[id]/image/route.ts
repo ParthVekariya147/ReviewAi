@@ -37,12 +37,20 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
 
   const { data: code } = await db
     .from('qr_codes')
-    .select('token, campaign_name')
+    .select('token, campaign_name, business_id')
     .eq('id', id)
     .eq('business_id', businessId)
     .single();
 
   if (!code) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  /* Fetch business logo_url so it can be embedded if the owner has uploaded one */
+  const { data: biz } = await db
+    .from('businesses')
+    .select('logo_url')
+    .eq('id', businessId)
+    .single();
+  const logoUrl = biz?.logo_url ?? undefined;
 
   const sp     = req.nextUrl.searchParams;
   const format = sp.get('format') === 'svg' ? 'svg' : 'png';
@@ -74,7 +82,7 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
       });
     }
 
-    const png = await generateQRPng(qrUrl, { color, bg, size });
+    const png = await generateQRPng(qrUrl, { color, bg, size, logoUrl });
     return new NextResponse(png.buffer as ArrayBuffer, {
       headers: {
         'Content-Type':        'image/png',

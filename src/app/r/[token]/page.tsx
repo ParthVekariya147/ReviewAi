@@ -20,7 +20,7 @@ async function lookupToken(token: string): Promise<BusinessData | null> {
         id, token, status,
         businesses (
           name, tagline, google_link, brand_color,
-          logo_initials, min_rating_for_google, language, review_platforms
+          logo_initials, logo_url, min_rating_for_google, language, review_platforms
         )
       `)
       .eq('token', token)
@@ -31,7 +31,7 @@ async function lookupToken(token: string): Promise<BusinessData | null> {
 
     const biz = (Array.isArray(qr.businesses) ? qr.businesses[0] : qr.businesses) as {
       name: string; tagline: string | null; google_link: string | null;
-      brand_color: string; logo_initials: string;
+      brand_color: string; logo_initials: string; logo_url: string | null;
       min_rating_for_google: number; language: string;
       review_platforms: ReviewPlatformEntry[] | null;
     };
@@ -49,6 +49,7 @@ async function lookupToken(token: string): Promise<BusinessData | null> {
       reviewPlatforms,
       brandColor:         biz.brand_color,
       logoInitials:       biz.logo_initials,
+      logoUrl:            biz.logo_url    ?? null,
       minRatingForGoogle: biz.min_rating_for_google,
       language:           biz.language,
     };

@@ -16,6 +16,7 @@ export default async function FunnelPage() {
     google_link: (currentBusiness.google_link as string | null) ?? null,
     brand_color: String(currentBusiness.brand_color ?? '#6E5BFF'),
     logo_initials: String(currentBusiness.logo_initials ?? 'BZ'),
+    logo_url: (currentBusiness.logo_url as string | null) ?? null,
     min_rating_for_google: Number(currentBusiness.min_rating_for_google ?? 4),
     language: String(currentBusiness.language ?? 'en'),
     plan: String(currentBusiness.plan ?? 'free'),

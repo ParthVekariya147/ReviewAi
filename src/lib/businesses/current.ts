@@ -12,6 +12,7 @@ const MODERN_SELECT = [
   'google_link',
   'brand_color',
   'logo_initials',
+  'logo_url',
   'min_rating_for_google',
   'language',
   'plan',
@@ -20,6 +21,7 @@ const MODERN_SELECT = [
   'onboarding_step',
   'business_type',
   'review_keywords',
+  'review_length_preference',
   'created_at',
   'updated_at',
 ].join(', ');
@@ -108,6 +110,9 @@ export function normalizeBusiness(business: BusinessRow | null): BusinessRow | n
     onboarding_step: typeof business.onboarding_step === 'number'
       ? business.onboarding_step
       : 0,
+    review_length_preference: Array.isArray(business.review_length_preference)
+      ? business.review_length_preference
+      : ['short', 'medium'],
   };
 }
 

@@ -19,6 +19,9 @@ export default async function SettingsPage() {
     min_rating_for_google: Number(currentBusiness.min_rating_for_google ?? 4),
     language: String(currentBusiness.language ?? 'en'),
     plan: String(currentBusiness.plan ?? 'free'),
+    review_length_preference: Array.isArray(currentBusiness.review_length_preference)
+      ? (currentBusiness.review_length_preference as string[])
+      : ['short', 'medium'],
   } : null;
 
   return (

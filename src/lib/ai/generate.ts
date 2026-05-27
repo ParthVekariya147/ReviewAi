@@ -16,6 +16,8 @@ import Anthropic       from '@anthropic-ai/sdk';
 import OpenAI          from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+export type ReviewLength = 'short' | 'medium' | 'long';
+
 export interface ReviewRequest {
   businessName:    string;
   tagline:         string;
@@ -23,6 +25,7 @@ export interface ReviewRequest {
   reviewKeywords:  string;   // comma-separated highlights
   rating:          number;   // 1–5
   language:        string;   // 'en' | 'es' | …
+  length?:         ReviewLength; // defaults to 'long' when omitted
 }
 
 /* ── key helpers ─────────────────────────────────────────── */
@@ -47,7 +50,19 @@ function nextKey(_prefix: string, keys: string[]): string {
 
 /* ── prompt ──────────────────────────────────────────────── */
 
+function lengthInstruction(length: ReviewLength): string {
+  switch (length) {
+    case 'short':
+      return '- Length: 1–2 sentences (15–30 words). Be punchy and complete — no trailing off.';
+    case 'medium':
+      return '- Length: 3–4 sentences (40–70 words). Include 1 specific detail about the experience.';
+    case 'long':
+      return '- Length: 5–7 sentences (80–150 words). Include 2–3 specific details about the business or experience.';
+  }
+}
+
 function buildPrompt(req: ReviewRequest): string {
+  const length   = req.length ?? 'long';
   const stars    = '★'.repeat(req.rating) + '☆'.repeat(5 - req.rating);
   const langNote = req.language !== 'en'
     ? `Write entirely in ${req.language === 'es' ? 'Spanish' : req.language}.`
@@ -64,7 +79,8 @@ ${typeNote}
 ${kwNote}
 ${langNote}
 Rules:
-- 2–4 sentences, first-person, natural tone — not salesy or over-the-top
+${lengthInstruction(length)}
+- First-person, natural tone — not salesy or over-the-top
 - Sound like a real person, not marketing copy
 - If rating is 4–5: warm and enthusiastic but believable
 - If rating is 3: mildly positive with a small hint of room to improve

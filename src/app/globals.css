@@ -854,7 +854,7 @@ button { font-family: inherit; }
 .lp-page {
   padding: 28px; display: flex; flex-direction: column;
   gap: var(--lp-stack-gap, 16px);
-  max-width: 1480px; margin: 0 auto; width: 100%;
+  width: 100%;
 }
 .lp-page-hd {
   display: flex; align-items: flex-start;

@@ -44,6 +44,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         bizInitials={String(biz?.logo_initials ?? '')}
         bizColor={String(biz?.brand_color ?? '#6366F1')}
         bizPlan={String(biz?.plan ?? 'free')}
+        bizLogoUrl={(biz?.logo_url as string | null) ?? null}
       />
       <main className="lp-main">
         <Topbar ownerName={ownerName} />

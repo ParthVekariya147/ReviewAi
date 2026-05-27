@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Icon, Card, CardHeader, Btn, Badge, Stat, Chart, Field, Input, Select, Switch, Tabs, StarRating, Counter, pct } from '../ui';
+import { Icon, Card, Btn, Stat, Chart, Field, Input, Select, Switch, Tabs, StarRating, Counter, pct } from '../ui';
 import { PLATFORM_DEFS, type ReviewPlatformEntry } from '@/lib/platforms';
+import { LogoUpload } from '../LogoUpload';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -16,6 +17,7 @@ interface Business {
   google_link:           string | null;
   brand_color:           string;
   logo_initials:         string;
+  logo_url?:             string | null;
   min_rating_for_google: number;
   language:              string;
   plan:                  string;
@@ -68,111 +70,19 @@ function PageHeader({ title, sub, actions }: { title: string; sub?: string; acti
   );
 }
 
-interface FunnelState {
-  style?:       string;
-  heading?:     string;
-  sub?:         string;
-  tone?:        string;
-  language?:    string;
-  threshold?:   number;
-  reviewCount?: number;
-}
-
-type StyleEntry = { bg: string; fg: string; accent: string; font: string };
-
-function FunnelMockup({ brand, step = 'landing', funnel = {} }: {
-  brand: { name: string; color: string; initials: string };
-  step?: string;
-  funnel?: FunnelState;
-}) {
-  const style   = funnel.style   || 'elegant';
-  const heading = funnel.heading || `Thanks for visiting ${brand.name}!`;
-  const sub     = funnel.sub     || "We'd love to hear about your experience.";
-
-  const styleVars: Record<string, StyleEntry> = {
-    elegant: { bg: '#FAFAF7', fg: '#0F0F12', accent: brand.color, font: 'ui-serif, Georgia, serif' },
-    vivid:   { bg: `linear-gradient(160deg, ${brand.color} 0%, #8B5CF6 100%)`, fg: '#fff', accent: '#fff', font: 'system-ui' },
-    minimal: { bg: '#FFFFFF', fg: '#000', accent: '#000', font: 'system-ui' },
-    playful: { bg: '#FFF6E8', fg: '#3F2E1B', accent: brand.color, font: 'system-ui' },
-  };
-
-  const sv       = styleVars[style] || styleVars.elegant;
-  const isGrad   = sv.bg.includes('gradient');
-  const btnColor = isGrad ? brand.color : '#fff';
-  const logoText = brand.initials || brand.name.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase() || '??';
-
-  return (
-    <div className="lp-funnel" style={{ background: sv.bg, color: sv.fg, fontFamily: sv.font }}>
-      <div className="lp-funnel-head">
-        <div className="lp-funnel-logo" style={{ background: sv.accent, color: btnColor }}>
-          {logoText}
-        </div>
-        <div className="lp-funnel-biz">{brand.name || 'Your Business'}</div>
-      </div>
-      {step === 'landing' && (
-        <div className="lp-funnel-body">
-          <div className="lp-funnel-h">{heading}</div>
-          <div className="lp-funnel-sub">{sub}</div>
-          <div className="lp-funnel-stars-prompt">
-            {[1,2,3,4,5].map(i => <span key={i} className="lp-funnel-star-prompt">★</span>)}
-          </div>
-          <div className="lp-funnel-cta" style={{ background: sv.accent, color: btnColor }}>Rate your visit</div>
-        </div>
-      )}
-      {step === 'rate' && (
-        <div className="lp-funnel-body">
-          <div className="lp-funnel-h" style={{ fontSize: 18 }}>How was it?</div>
-          <div className="lp-funnel-stars-big">
-            {[1,2,3,4,5].map(i => <span key={i} className="lp-funnel-star-big" style={{ color: '#F5A623' }}>★</span>)}
-          </div>
-          <div className="lp-funnel-sub">5 out of 5 — wonderful!</div>
-          <div className="lp-funnel-cta" style={{ background: sv.accent, color: btnColor }}>Continue</div>
-        </div>
-      )}
-      {step === 'generate' && (
-        <div className="lp-funnel-body" style={{ paddingTop: 14 }}>
-          <div className="lp-funnel-h" style={{ fontSize: 16 }}>Pick what fits your visit</div>
-          {[
-            'The wood-fired pizza was incredible and the staff made our anniversary feel special. Will be back soon!',
-            'Cozy atmosphere, fast service and the vegan menu was a delightful surprise. Highly recommend.',
-            'Best Italian in NW Portland — every dish was wonderful and the patio is a vibe at sunset.',
-          ].map((r, i) => (
-            <div className="lp-funnel-review" key={i} style={{ borderColor: i === 1 ? sv.accent : 'rgba(0,0,0,0.08)' }}>
-              <div className="lp-funnel-review-text">{r}</div>
-              <div className="lp-funnel-review-acts">
-                <span><Icon name="refresh" size={11}/> Refresh</span>
-                <span><Icon name="copy" size={11}/> Copy</span>
-              </div>
-            </div>
-          ))}
-          <div className="lp-funnel-cta" style={{ background: sv.accent, color: btnColor }}>Post to Google</div>
-        </div>
-      )}
-      {step === 'redirect' && (
-        <div className="lp-funnel-body" style={{ textAlign: 'center', padding: '24px 16px' }}>
-          <div className="lp-funnel-redirect-icon"><Icon name="external" size={24}/></div>
-          <div className="lp-funnel-h" style={{ fontSize: 18 }}>Opening Google…</div>
-          <div className="lp-funnel-sub">Paste your review and hit Post. Thanks!</div>
-          <div className="lp-google-card">
-            <div className="lp-google-g">G</div>
-            <div>
-              <div style={{ fontWeight: 600 }}>{brand.name || 'Your Business'}</div>
-              <div className="lp-muted" style={{ fontSize: 11 }}>Write a review</div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── main component ────────────────────────────────────────────
 
 export default function ScreenFunnel({ initialBusiness }: Props) {
   const [tab,        setTab]        = useState('design');
-  const [simStep,    setSimStep]    = useState('landing');
-  const [simRunning, setSimRunning] = useState(false);
   const [saveState,  setSaveState]  = useState<SaveState>('idle');
+  const [logoUrl,    setLogoUrl]    = useState<string | null>(initialBusiness?.logo_url ?? null);
+  const [logoToast,  setLogoToast]  = useState<'uploaded' | 'removed' | null>(null);
+
+  function handleLogoUpdate(url: string | null) {
+    setLogoUrl(url);
+    setLogoToast(url ? 'uploaded' : 'removed');
+    setTimeout(() => setLogoToast(null), 2500);
+  }
 
   const { data: overview } = useQuery<{
     kpis: { scans: number; generates: number; copies: number; redirects: number; completes: number; conversion: number };
@@ -239,24 +149,6 @@ export default function ScreenFunnel({ initialBusiness }: Props) {
     }
     return [{ id: 'google', url: gl, enabled: true }];
   });
-
-  const brand = {
-    name:     initialBusiness?.name         ?? '',
-    color:    initialBusiness?.brand_color  ?? '#6E5BFF',
-    initials: initialBusiness?.logo_initials ?? '',
-  };
-
-  useEffect(() => {
-    if (!simRunning) return;
-    const steps = ['landing', 'rate', 'generate', 'redirect'];
-    const i  = steps.indexOf(simStep);
-    const id = setTimeout(() => {
-      const ni = (i + 1) % steps.length;
-      setSimStep(steps[ni]);
-      if (ni === 0) setSimRunning(false);
-    }, 1900);
-    return () => clearTimeout(id);
-  }, [simRunning, simStep]);
 
   const setFunnelField = (k: string, v: string | number) => setFunnel(f => ({ ...f, [k]: v }));
 
@@ -332,12 +224,11 @@ export default function ScreenFunnel({ initialBusiness }: Props) {
         sub="Design what customers see after they scan your QR code"
         actions={
           <>
-            <Btn icon="eye" onClick={() => { setSimRunning(true); setSimStep('landing'); }}>Preview</Btn>
             <Btn variant="primary" icon="check" onClick={publish}>{publishLabel}</Btn>
           </>
         }
       />
-      <div className="lp-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) 360px', gap: 16, alignItems: 'start' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Card>
           <Tabs value={tab} onChange={setTab} tabs={[
             { value: 'design',    label: 'Design'          },
@@ -372,7 +263,19 @@ export default function ScreenFunnel({ initialBusiness }: Props) {
                   <Input value={funnel.sub} onChange={e => setFunnelField('sub', e.target.value)} />
                 </Field>
                 <Field label="Primary CTA"><Input defaultValue="Rate your visit" /></Field>
-                <Field label="Logo"><Input defaultValue="logo.svg" icon="upload" /></Field>
+                <Field label="Logo">
+                  <LogoUpload currentLogoUrl={logoUrl} onSuccess={handleLogoUpdate} />
+                  {logoToast && (
+                    <span style={{
+                      display: 'inline-block', marginTop: 6,
+                      fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20,
+                      background: logoToast === 'uploaded' ? '#dcfce7' : 'var(--lp-surface-muted)',
+                      color:      logoToast === 'uploaded' ? '#16a34a' : 'var(--lp-fg-muted)',
+                    }}>
+                      {logoToast === 'uploaded' ? '✓ Logo uploaded' : 'Logo removed'}
+                    </span>
+                  )}
+                </Field>
               </div>
               <Switch label="Show business hours & address" sub="Helps customer recall the visit" checked={showHours} onChange={setShowHours} />
               <Switch label="Show staff signature" sub="Personalize with the staff member's name" checked={showStaff} onChange={setShowStaff} />
@@ -583,50 +486,6 @@ export default function ScreenFunnel({ initialBusiness }: Props) {
           )}
         </Card>
 
-        <div className="lp-stack" style={{ position: 'sticky', top: 12 }}>
-          <Card>
-            <CardHeader
-              title="Live preview"
-              subtitle={`Customer view — ${simStep}`}
-              action={
-                <Btn variant="primary" size="sm" icon={simRunning ? 'x' : 'play'}
-                     onClick={() => { setSimRunning(r => !r); if (!simRunning) setSimStep('landing'); }}>
-                  {simRunning ? 'Stop' : 'Simulate'}
-                </Btn>
-              }
-            />
-            <div className="lp-phone" style={{ margin: '0 auto' }}>
-              <FunnelMockup brand={brand} step={simStep} funnel={{ ...funnel, language, threshold }} />
-            </div>
-            <div className="lp-flex" style={{ gap: 6, marginTop: 14, justifyContent: 'center' }}>
-              {['landing','rate','generate','redirect'].map(s => (
-                <button key={s} className={`lp-step-dot ${simStep === s ? 'is-on' : ''}`} onClick={() => setSimStep(s)}>
-                  {s}
-                </button>
-              ))}
-            </div>
-          </Card>
-
-          {initialBusiness && (
-            <Card>
-              <CardHeader title="Brand" subtitle="From business profile" />
-              <div className="lp-flex" style={{ gap: 10, alignItems: 'center' }}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: brand.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 13 }}>
-                  {brand.initials || brand.name.slice(0, 2).toUpperCase()}
-                </div>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 13 }}>{brand.name}</div>
-                  <div className="lp-muted" style={{ fontSize: 11 }}>{brand.color}</div>
-                </div>
-                <span style={{ marginLeft: 'auto' }}>
-                  <Badge tone={initialBusiness.plan === 'pro' ? 'primary' : initialBusiness.plan === 'enterprise' ? 'success' : 'neutral'}>
-                    {initialBusiness.plan}
-                  </Badge>
-                </span>
-              </div>
-            </Card>
-          )}
-        </div>
       </div>
     </div>
   );
