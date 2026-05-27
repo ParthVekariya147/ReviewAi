@@ -1843,3 +1843,4 @@ button { font-family: inherit; }
 .rv-invalid h2 { font-size: 22px; font-weight: 700; margin: 0 0 8px; color: #fff; }
 .rv-invalid p  { font-size: 14px; margin: 0; line-height: 1.6; }
 @keyframes lp-fadeup { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes lp-spin    { to { transform: rotate(360deg); } }

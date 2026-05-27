@@ -160,6 +160,28 @@ async function upsertBusiness(payload: Record<string, unknown>): Promise<boolean
   return res.ok;
 }
 
+// ── funnel preview ────────────────────────────────────────────
+
+function FunnelPreview({ name, color, initials }: { name: string; color: string; initials: string }) {
+  const logoText = initials || autoInitials(name) || '??';
+  return (
+    <div style={{ background: '#FAFAF7', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(0,0,0,0.06)', fontFamily: 'ui-serif, Georgia, serif' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 18px', borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
+          {logoText}
+        </div>
+        <div style={{ fontWeight: 600, fontSize: 14, color: '#0F0F12' }}>{name || 'Your Business'}</div>
+      </div>
+      <div style={{ padding: '24px 18px', textAlign: 'center' }}>
+        <div style={{ fontSize: 17, fontWeight: 600, color: '#0F0F12', marginBottom: 6 }}>Thanks for visiting!</div>
+        <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 20 }}>We&apos;d love to hear about your experience.</div>
+        <div style={{ fontSize: 26, letterSpacing: 4, marginBottom: 20, color: '#D1D5DB' }}>★★★★★</div>
+        <div style={{ padding: '12px 20px', borderRadius: 10, background: color, color: '#fff', fontWeight: 600, fontSize: 14 }}>Rate your visit</div>
+      </div>
+    </div>
+  );
+}
+
 // ── main component ────────────────────────────────────────────
 
 export default function ScreenOnboarding({ user, existingBusiness, initialStep = 0 }: Props) {
@@ -373,64 +395,72 @@ export default function ScreenOnboarding({ user, existingBusiness, initialStep =
 
           {/* ── Step 0: Business details ──────────────────────── */}
           {step === 0 && (
-            <div>
-              <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.03em', margin: '0 0 6px' }}>
-                {user.industry ? `Set up your ${ind.emoji} ${ind.label}` : 'Tell us about your business'}
-              </h1>
-              <p style={{ color: 'var(--lp-fg-muted)', fontSize: 15, margin: '0 0 28px', lineHeight: 1.5 }}>
-                We&apos;ll personalise your review funnel and platform recommendations based on these details.
-              </p>
-              {existingBusiness && (
-                <div style={{ marginBottom: 20, padding: '10px 14px', background: 'rgba(16,185,129,0.08)', borderRadius: 8, border: '1px solid rgba(16,185,129,0.2)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Icon name="check" size={14} style={{ color: 'var(--lp-success)' }} />
-                  <span style={{ fontSize: 12, color: 'var(--lp-success)', fontWeight: 500 }}>
-                    Previous progress restored — continue from where you left off.
-                  </span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'start' }}>
+              <div>
+                <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.03em', margin: '0 0 6px' }}>
+                  {user.industry ? `Set up your ${ind.emoji} ${ind.label}` : 'Tell us about your business'}
+                </h1>
+                <p style={{ color: 'var(--lp-fg-muted)', fontSize: 15, margin: '0 0 28px', lineHeight: 1.5 }}>
+                  We&apos;ll personalise your review funnel and platform recommendations based on these details.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <Field label="Business name *">
+                    <Input
+                      value={form.name}
+                      onChange={e => {
+                        patchForm('name', e.target.value);
+                        if (!existingBusiness?.logo_initials) {
+                          patchForm('initials', autoInitials(e.target.value));
+                        }
+                      }}
+                      placeholder="e.g. Olive & Pine Bistro"
+                      icon="building"
+                    />
+                  </Field>
+                  <Field label="Tagline" hint="Shows under your name on the review funnel — optional">
+                    <Input
+                      value={form.tagline}
+                      onChange={e => patchForm('tagline', e.target.value)}
+                      placeholder="e.g. Wood-fired comfort food since 2019"
+                    />
+                  </Field>
+                  <Field label="Business type" hint="Used to personalise AI review drafts — auto-filled from your industry">
+                    <Input
+                      value={form.business_type}
+                      onChange={e => patchForm('business_type', e.target.value)}
+                      placeholder={ind.label}
+                      maxLength={60}
+                    />
+                  </Field>
+                  <Field label="Review keywords" hint="What should customers mention? Comma-separated — optional">
+                    <Input
+                      value={form.review_keywords}
+                      onChange={e => patchForm('review_keywords', e.target.value)}
+                      placeholder={keywordPlaceholder(user.industry)}
+                      maxLength={300}
+                    />
+                  </Field>
+                  <Field label="Owner name">
+                    <Input defaultValue={user.full_name || user.email.split('@')[0]} icon="user" />
+                  </Field>
+                  <Field label="Account email">
+                    <Input defaultValue={user.email} disabled />
+                  </Field>
                 </div>
-              )}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <Field label="Business name *">
-                  <Input
-                    value={form.name}
-                    onChange={e => {
-                      patchForm('name', e.target.value);
-                      if (!existingBusiness?.logo_initials) {
-                        patchForm('initials', autoInitials(e.target.value));
-                      }
-                    }}
-                    placeholder="e.g. Olive & Pine Bistro"
-                    icon="building"
-                  />
-                </Field>
-                <Field label="Tagline" hint="Shows under your name on the review funnel — optional">
-                  <Input
-                    value={form.tagline}
-                    onChange={e => patchForm('tagline', e.target.value)}
-                    placeholder="e.g. Wood-fired comfort food since 2019"
-                  />
-                </Field>
-                <Field label="Business type" hint="Used to personalise AI review drafts — auto-filled from your industry">
-                  <Input
-                    value={form.business_type}
-                    onChange={e => patchForm('business_type', e.target.value)}
-                    placeholder={ind.label}
-                    maxLength={60}
-                  />
-                </Field>
-                <Field label="Review keywords" hint="What should customers mention? Comma-separated — optional">
-                  <Input
-                    value={form.review_keywords}
-                    onChange={e => patchForm('review_keywords', e.target.value)}
-                    placeholder={keywordPlaceholder(user.industry)}
-                    maxLength={300}
-                  />
-                </Field>
-                <Field label="Owner name">
-                  <Input defaultValue={user.full_name || user.email.split('@')[0]} icon="user" />
-                </Field>
-                <Field label="Account email">
-                  <Input defaultValue={user.email} disabled />
-                </Field>
+              </div>
+
+              {/* Mini preview */}
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--lp-fg-muted)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Funnel preview</div>
+                <FunnelPreview name={form.name} color={form.color} initials={form.initials} />
+                {existingBusiness && (
+                  <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(16,185,129,0.08)', borderRadius: 8, border: '1px solid rgba(16,185,129,0.2)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Icon name="check" size={14} style={{ color: 'var(--lp-success)' }} />
+                    <span style={{ fontSize: 12, color: 'var(--lp-success)', fontWeight: 500 }}>
+                      Previous progress restored — continue from where you left off.
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -569,52 +599,60 @@ export default function ScreenOnboarding({ user, existingBusiness, initialStep =
 
           {/* ── Step 2: Branding ──────────────────────────────── */}
           {step === 2 && (
-            <div>
-              <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.03em', margin: '0 0 6px' }}>
-                Make it yours
-              </h1>
-              <p style={{ color: 'var(--lp-fg-muted)', fontSize: 15, margin: '0 0 28px', lineHeight: 1.5 }}>
-                Your brand color and initials appear on every customer review funnel.
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                <Field label="Brand color">
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
-                    {BRAND_COLORS.map(c => (
-                      <button
-                        key={c}
-                        onClick={() => patchForm('color', c)}
-                        style={{
-                          width: 36, height: 36, borderRadius: 10, border: 'none',
-                          background: c, cursor: 'pointer',
-                          outline: form.color === c ? `3px solid ${c}` : '3px solid transparent',
-                          outlineOffset: 2,
-                          transform: form.color === c ? 'scale(1.15)' : 'scale(1)',
-                          transition: 'all 0.15s',
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--lp-fg-muted)' }}>
-                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: form.color }} />
-                    Selected: {form.color}
-                  </div>
-                </Field>
-                <Field label="Logo initials" hint="2 letters shown in the funnel header — auto-filled from your name">
-                  <Input
-                    value={form.initials}
-                    maxLength={2}
-                    onChange={e => patchForm('initials', e.target.value.toUpperCase())}
-                    style={{ width: 90 }}
-                    placeholder={autoInitials(form.name) || 'AB'}
-                  />
-                </Field>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, alignItems: 'start' }}>
+              <div>
+                <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.03em', margin: '0 0 6px' }}>
+                  Make it yours
+                </h1>
+                <p style={{ color: 'var(--lp-fg-muted)', fontSize: 15, margin: '0 0 28px', lineHeight: 1.5 }}>
+                  Your brand color and initials appear on every customer review funnel.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                  <Field label="Brand color">
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+                      {BRAND_COLORS.map(c => (
+                        <button
+                          key={c}
+                          onClick={() => patchForm('color', c)}
+                          style={{
+                            width: 36, height: 36, borderRadius: 10, border: 'none',
+                            background: c, cursor: 'pointer',
+                            outline: form.color === c ? `3px solid ${c}` : '3px solid transparent',
+                            outlineOffset: 2,
+                            transform: form.color === c ? 'scale(1.15)' : 'scale(1)',
+                            transition: 'all 0.15s',
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </Field>
+                  <Field label="Logo initials" hint="2 letters shown in the funnel header — auto-filled from your name">
+                    <Input
+                      value={form.initials}
+                      maxLength={2}
+                      onChange={e => patchForm('initials', e.target.value.toUpperCase())}
+                      style={{ width: 90 }}
+                      placeholder={autoInitials(form.name) || 'AB'}
+                    />
+                  </Field>
+                </div>
+              </div>
+
+              {/* Live preview */}
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--lp-fg-muted)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Live preview</div>
+                <FunnelPreview name={form.name} color={form.color} initials={form.initials} />
+                <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--lp-fg-muted)' }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: form.color }} />
+                  Selected: {form.color}
+                </div>
               </div>
             </div>
           )}
 
           {/* ── Step 3: Launch ────────────────────────────────── */}
           {step === 3 && (
-            <div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'start' }}>
               <div>
                 <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.03em', margin: '0 0 6px' }}>
                   You&apos;re ready to launch 🚀
@@ -689,6 +727,11 @@ export default function ScreenOnboarding({ user, existingBusiness, initialStep =
                 </div>
               </div>
 
+              {/* Funnel preview */}
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--lp-fg-muted)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Funnel preview</div>
+                <FunnelPreview name={form.name} color={form.color} initials={form.initials} />
+              </div>
             </div>
           )}
 

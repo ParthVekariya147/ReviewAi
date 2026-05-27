@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Icon, Card, Btn, Stat, Chart, Field, Input, Select, Switch, Tabs, StarRating, Counter, pct } from '../ui';
+import { Icon, Card, CardHeader, Btn, Badge, Stat, Chart, Field, Input, Select, Switch, Tabs, StarRating, Counter, pct } from '../ui';
 import { PLATFORM_DEFS, type ReviewPlatformEntry } from '@/lib/platforms';
 import { LogoUpload } from '../LogoUpload';
 
@@ -70,10 +70,148 @@ function PageHeader({ title, sub, actions }: { title: string; sub?: string; acti
   );
 }
 
+// ── funnel state type ─────────────────────────────────────────
+
+interface FunnelState {
+  style?:       string;
+  heading?:     string;
+  sub?:         string;
+  tone?:        string;
+  language?:    string;
+  threshold?:   number;
+  reviewCount?: number;
+}
+
+// ── funnel mockup — mirrors the real /r/[token] page ─────────
+
+function FunnelMockup({ brand, step = 'landing', funnel = {} }: {
+  brand: { name: string; color: string; initials: string; logoUrl?: string | null; tagline?: string };
+  step?: string;
+  funnel?: FunnelState;
+}) {
+  const color    = brand.color || '#6E5BFF';
+  const logoText = brand.initials || brand.name.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase() || '??';
+  const bizName  = brand.name || 'Your Business';
+  const sampleReview = `${bizName} is a dream! The atmosphere, service, and quality made for an unforgettable experience. Highly recommend!`;
+
+  /* style variants — mirrors the real funnel styles */
+  type SV = { bg: string; fg: string; sub: string; divider: string; card: string; btnBg: string; btnFg: string; font: string };
+  const styleMap: Record<string, SV> = {
+    elegant: { bg: '#FAFAF7', fg: '#0F0F12', sub: '#6B7280', divider: '#E5E7EB', card: 'rgba(255,255,255,0.6)', btnBg: color,   btnFg: '#fff', font: 'ui-serif, Georgia, serif' },
+    vivid:   { bg: `linear-gradient(160deg, ${color} 0%, #8B5CF6 100%)`, fg: '#fff', sub: 'rgba(255,255,255,0.75)', divider: 'rgba(255,255,255,0.2)', card: 'rgba(255,255,255,0.15)', btnBg: '#fff', btnFg: color, font: 'system-ui, sans-serif' },
+    minimal: { bg: '#FFFFFF', fg: '#000',    sub: '#6B7280', divider: '#E5E7EB', card: '#F9FAFB',               btnBg: '#000',  btnFg: '#fff', font: 'system-ui, sans-serif' },
+    playful: { bg: '#FFF6E8', fg: '#3F2E1B', sub: '#92745A', divider: '#F0DFC0', card: 'rgba(255,255,255,0.7)', btnBg: color,   btnFg: '#fff', font: 'system-ui, sans-serif' },
+  };
+  const sv = styleMap[funnel.style ?? 'elegant'] ?? styleMap.elegant;
+
+  /* shared header — same on every step */
+  const Header = (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 20px 0', gap: 6, textAlign: 'center' }}>
+      <div style={{ width: 52, height: 52, borderRadius: 14, background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 15, overflow: 'hidden', flexShrink: 0 }}>
+        {brand.logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={brand.logoUrl} alt={bizName} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        ) : logoText}
+      </div>
+      <div style={{ fontWeight: 700, fontSize: 14, color: sv.fg }}>{bizName}</div>
+      {brand.tagline && (
+        <div style={{ fontSize: 10, color: sv.sub, lineHeight: 1.4, maxWidth: 200 }}>{brand.tagline}</div>
+      )}
+      <div style={{ width: '100%', height: 1, background: sv.divider, marginTop: 8 }} />
+    </div>
+  );
+
+  return (
+    <div className="lp-funnel" style={{ background: sv.bg, color: sv.fg, fontFamily: sv.font, padding: '36px 0 0' }}>
+      {Header}
+
+      <div className="lp-funnel-body">
+
+        {/* LANDING — "How was your experience?" */}
+        {step === 'landing' && (
+          <>
+            <div style={{ fontWeight: 700, fontSize: 17, lineHeight: 1.25, textAlign: 'center', marginTop: 4, color: sv.fg }}>
+              {funnel.heading || 'How was your experience?'}
+            </div>
+            <div style={{ fontSize: 11, color: sv.sub, textAlign: 'center', lineHeight: 1.5 }}>
+              {funnel.sub || 'Your feedback helps us grow. It only takes 30 seconds.'}
+            </div>
+            <div style={{ marginTop: 'auto', background: sv.btnBg, borderRadius: 10, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, color: sv.btnFg, fontWeight: 600, fontSize: 13 }}>
+              <svg width="14" height="14" viewBox="0 0 18 18" fill="currentColor">
+                <path d="M9 1.5l2.09 4.24L16 6.62l-3.5 3.4.83 4.82L9 12.5l-4.33 2.34.83-4.82L2 6.62l4.91-.88L9 1.5z"/>
+              </svg>
+              Share your feedback
+            </div>
+          </>
+        )}
+
+        {/* RATE — star picker */}
+        {step === 'rate' && (
+          <>
+            <div style={{ fontWeight: 700, fontSize: 16, textAlign: 'center', marginTop: 4, color: sv.fg }}>
+              Tap a star to rate your visit
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 6, margin: '10px 0' }}>
+              {[1,2,3,4,5].map(i => (
+                <svg key={i} width="28" height="28" viewBox="0 0 48 48" fill="none">
+                  <path d="M24 4l5.09 10.26L41 15.27l-8.5 8.27 2.01 11.72L24 30l-10.51 5.26 2.01-11.72L7 15.27l11.91-1.01L24 4z"
+                    fill="rgba(0,0,0,0.1)" stroke="rgba(0,0,0,0.15)" strokeWidth="1.5" strokeLinejoin="round"/>
+                </svg>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* GENERATE — AI spinning */}
+        {step === 'generate' && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, flex: 1, padding: '8px 0' }}>
+            <div style={{ width: 36, height: 36, border: `3px solid ${sv.btnBg}40`, borderTopColor: sv.btnBg, borderRadius: '50%', animation: 'lp-spin 0.9s linear infinite' }} />
+            <div style={{ fontWeight: 700, fontSize: 15, textAlign: 'center', color: sv.fg }}>Crafting your review…</div>
+            <div style={{ fontSize: 11, color: sv.sub, textAlign: 'center', lineHeight: 1.5 }}>
+              Our AI is writing a personalised draft for you…
+            </div>
+          </div>
+        )}
+
+        {/* REDIRECT — review draft + actions */}
+        {step === 'redirect' && (
+          <>
+            <div style={{ fontWeight: 700, fontSize: 15, textAlign: 'center', marginTop: 4, color: sv.fg }}>Here&apos;s your review draft</div>
+            <div style={{ fontSize: 10, color: sv.sub, textAlign: 'center' }}>Review, edit, then post it — takes 10 seconds!</div>
+            <div style={{ background: sv.card, border: `1px solid ${sv.divider}`, borderRadius: 9, padding: '9px 10px', fontSize: 11, lineHeight: 1.5, color: sv.fg }}>
+              {sampleReview}
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ flex: 1, height: 32, borderRadius: 8, border: `1px solid ${sv.divider}`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontSize: 11, fontWeight: 500, color: sv.fg }}>
+                <svg width="11" height="11" viewBox="0 0 15 15" fill="none"><path d="M13 7.5A5.5 5.5 0 112.5 4.5M2.5 1.5v3h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                Try another
+              </div>
+              <div style={{ flex: 1, height: 32, borderRadius: 8, border: `1px solid ${sv.divider}`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontSize: 11, fontWeight: 500, color: sv.fg }}>
+                <svg width="11" height="11" viewBox="0 0 15 15" fill="none"><path d="M10 2l3 3-8 8H2v-3l8-8z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>
+                Edit
+              </div>
+            </div>
+            <div style={{ background: sv.btnBg, borderRadius: 10, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: sv.btnFg, fontWeight: 600, fontSize: 12, marginTop: 'auto' }}>
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                <rect x="5" y="5" width="9" height="9" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M3 11V3h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+              Copy &amp; open Google Reviews
+            </div>
+          </>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
 // ── main component ────────────────────────────────────────────
 
 export default function ScreenFunnel({ initialBusiness }: Props) {
   const [tab,        setTab]        = useState('design');
+  const [simStep,    setSimStep]    = useState('landing');
+  const [simRunning, setSimRunning] = useState(false);
   const [saveState,  setSaveState]  = useState<SaveState>('idle');
   const [logoUrl,    setLogoUrl]    = useState<string | null>(initialBusiness?.logo_url ?? null);
   const [logoToast,  setLogoToast]  = useState<'uploaded' | 'removed' | null>(null);
@@ -150,6 +288,26 @@ export default function ScreenFunnel({ initialBusiness }: Props) {
     return [{ id: 'google', url: gl, enabled: true }];
   });
 
+  const brand = {
+    name:     initialBusiness?.name          ?? '',
+    tagline:  initialBusiness?.tagline       ?? '',
+    color:    initialBusiness?.brand_color   ?? '#6E5BFF',
+    initials: initialBusiness?.logo_initials ?? '',
+    logoUrl,
+  };
+
+  useEffect(() => {
+    if (!simRunning) return;
+    const steps = ['landing', 'rate', 'generate', 'redirect'];
+    const i  = steps.indexOf(simStep);
+    const id = setTimeout(() => {
+      const ni = (i + 1) % steps.length;
+      setSimStep(steps[ni]);
+      if (ni === 0) setSimRunning(false);
+    }, 1900);
+    return () => clearTimeout(id);
+  }, [simRunning, simStep]);
+
   const setFunnelField = (k: string, v: string | number) => setFunnel(f => ({ ...f, [k]: v }));
 
   // Ensure URLs have a protocol so sanitizeUrl on the server doesn't strip them.
@@ -224,11 +382,12 @@ export default function ScreenFunnel({ initialBusiness }: Props) {
         sub="Design what customers see after they scan your QR code"
         actions={
           <>
+            <Btn icon="eye" onClick={() => { setSimRunning(true); setSimStep('landing'); }}>Preview</Btn>
             <Btn variant="primary" icon="check" onClick={publish}>{publishLabel}</Btn>
           </>
         }
       />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="lp-grid" style={{ gridTemplateColumns: 'minmax(0,1fr) 360px', gap: 16, alignItems: 'start' }}>
         <Card>
           <Tabs value={tab} onChange={setTab} tabs={[
             { value: 'design',    label: 'Design'          },
@@ -486,6 +645,53 @@ export default function ScreenFunnel({ initialBusiness }: Props) {
           )}
         </Card>
 
+        <div className="lp-stack" style={{ position: 'sticky', top: 12 }}>
+          <Card>
+            <CardHeader
+              title="Live preview"
+              subtitle={`Customer view — ${simStep}`}
+              action={
+                <Btn variant="primary" size="sm" icon={simRunning ? 'x' : 'play'}
+                     onClick={() => { setSimRunning(r => !r); if (!simRunning) setSimStep('landing'); }}>
+                  {simRunning ? 'Stop' : 'Simulate'}
+                </Btn>
+              }
+            />
+            <div className="lp-phone" style={{ margin: '0 auto' }}>
+              <FunnelMockup brand={brand} step={simStep} funnel={{ ...funnel, language, threshold }} />
+            </div>
+            <div className="lp-flex" style={{ gap: 6, marginTop: 14, justifyContent: 'center' }}>
+              {['landing','rate','generate','redirect'].map(s => (
+                <button key={s} className={`lp-step-dot ${simStep === s ? 'is-on' : ''}`} onClick={() => setSimStep(s)}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          {initialBusiness && (
+            <Card>
+              <CardHeader title="Brand" subtitle="From business profile" />
+              <div className="lp-flex" style={{ gap: 10, alignItems: 'center' }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: brand.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 13, overflow: 'hidden', flexShrink: 0 }}>
+                  {logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={logoUrl} alt={brand.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (brand.initials || brand.name.slice(0, 2).toUpperCase())}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{brand.name}</div>
+                  <div className="lp-muted" style={{ fontSize: 11 }}>{brand.color}</div>
+                </div>
+                <span style={{ marginLeft: 'auto' }}>
+                  <Badge tone={initialBusiness.plan === 'pro' ? 'primary' : initialBusiness.plan === 'enterprise' ? 'success' : 'neutral'}>
+                    {initialBusiness.plan}
+                  </Badge>
+                </span>
+              </div>
+            </Card>
+          )}
+        </div>
       </div>
     </div>
   );
