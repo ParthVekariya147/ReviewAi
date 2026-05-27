@@ -15,6 +15,9 @@ export type BusinessData = {
   logoUrl:            string | null;
   minRatingForGoogle: number;
   language:           string;
+  funnelStyle?:       string | null;
+  funnelHeading?:     string | null;
+  funnelSub?:         string | null;
 };
 
 type Step = 'landing' | 'rating' | 'generating' | 'review' | 'private' | 'success';
@@ -193,6 +196,15 @@ export default function FunnelFlow({
   const lang  = business?.language  ?? 'en';
   const brand = business?.brandColor ?? '#6E5BFF';
 
+  type SV = { bg: string; fg: string; sub: string; divider: string; card: string; btnBg: string; btnFg: string; font: string };
+  const styleMap: Record<string, SV> = {
+    elegant: { bg: '#FAFAF7', fg: '#0F0F12', sub: '#6B7280', divider: '#E5E7EB', card: '#fff',                     btnBg: brand, btnFg: '#fff', font: 'ui-serif, Georgia, serif' },
+    vivid:   { bg: `linear-gradient(160deg, ${brand} 0%, #8B5CF6 100%)`, fg: '#fff', sub: 'rgba(255,255,255,0.75)', divider: 'rgba(255,255,255,0.2)', card: 'rgba(255,255,255,0.15)', btnBg: '#fff', btnFg: brand, font: 'system-ui, sans-serif' },
+    minimal: { bg: '#FFFFFF', fg: '#000',    sub: '#6B7280', divider: '#E5E7EB', card: '#F9FAFB',                   btnBg: '#000', btnFg: '#fff', font: 'system-ui, sans-serif' },
+    playful: { bg: '#FFF6E8', fg: '#3F2E1B', sub: '#92745A', divider: '#F0DFC0', card: 'rgba(255,255,255,0.7)',     btnBg: brand, btnFg: '#fff', font: 'system-ui, sans-serif' },
+  };
+  const sv = styleMap[business?.funnelStyle ?? 'elegant'] ?? styleMap.elegant;
+
   // Resolve active platforms; fall back to googleLink for old records
   const activePlatforms = (business?.reviewPlatforms ?? []).filter(p => p.enabled && p.url.trim());
   const resolvedPlatforms = activePlatforms.length > 0
@@ -326,9 +338,9 @@ export default function FunnelFlow({
   return (
     <div
       className="rv-funnel-root"
-      style={{ '--rv-brand': brand } as React.CSSProperties}
+      style={{ '--rv-brand': brand, background: sv.bg, fontFamily: sv.font } as React.CSSProperties}
     >
-      <div className={`rv-funnel-card ${visible ? 'rv-step-enter' : 'rv-step-exit'}`}>
+      <div className={`rv-funnel-card ${visible ? 'rv-step-enter' : 'rv-step-exit'}`} style={{ background: sv.card }}>
 
         {/* Header — always visible */}
         <div className="rv-funnel-header">
@@ -339,12 +351,12 @@ export default function FunnelFlow({
             ) : business.logoInitials}
           </div>
           <div>
-            <p className="rv-funnel-biz-name">{business.name}</p>
-            {business.tagline && <p className="rv-funnel-tagline">{business.tagline}</p>}
+            <p className="rv-funnel-biz-name" style={{ color: sv.fg }}>{business.name}</p>
+            {business.tagline && <p className="rv-funnel-tagline" style={{ color: sv.sub }}>{business.tagline}</p>}
           </div>
         </div>
 
-        <div className="rv-divider" style={{ margin: '16px 28px 0' }}/>
+        <div className="rv-divider" style={{ margin: '16px 28px 0', background: sv.divider }}/>
 
         {/* Body */}
         <div className="rv-funnel-body">
@@ -352,9 +364,9 @@ export default function FunnelFlow({
           {/* LANDING ──────────────────────────── */}
           {step === 'landing' && (
             <>
-              <h2 className="rv-funnel-step-title">{t(lang, 'welcome')}</h2>
-              <p className="rv-funnel-step-sub">{t(lang, 'welcomeSub')}</p>
-              <button className="rv-btn rv-btn-primary" onClick={() => goTo('rating')}>
+              <h2 className="rv-funnel-step-title" style={{ color: sv.fg }}>{business.funnelHeading || t(lang, 'welcome')}</h2>
+              <p className="rv-funnel-step-sub" style={{ color: sv.sub }}>{business.funnelSub || t(lang, 'welcomeSub')}</p>
+              <button className="rv-btn rv-btn-primary" style={{ background: sv.btnBg, color: sv.btnFg }} onClick={() => goTo('rating')}>
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                   <path d="M9 1.5l2.09 4.24L16 6.62l-3.5 3.4.83 4.82L9 12.5l-4.33 2.34.83-4.82L2 6.62l4.91-.88L9 1.5z"
                     fill="currentColor"/>
@@ -367,7 +379,7 @@ export default function FunnelFlow({
           {/* RATING ───────────────────────────── */}
           {step === 'rating' && (
             <>
-              <h2 className="rv-funnel-step-title">{t(lang, 'rateUs')}</h2>
+              <h2 className="rv-funnel-step-title" style={{ color: sv.fg }}>{t(lang, 'rateUs')}</h2>
               <div className="rv-stars">
                 {[1, 2, 3, 4, 5].map((s) => (
                   <button
@@ -382,7 +394,7 @@ export default function FunnelFlow({
                   </button>
                 ))}
               </div>
-              <div className="rv-star-label" style={{ color: hovered || rating ? brand : undefined }}>
+              <div className="rv-star-label" style={{ color: hovered || rating ? brand : sv.sub }}>
                 {hovered
                   ? t(lang, 'starLabels').split(',')[hovered - 1] ?? t(lang, 'starLabels').split(',')[4]
                   : rating
@@ -399,18 +411,18 @@ export default function FunnelFlow({
           {step === 'generating' && (
             <div className="rv-generating">
               <div className="rv-spinner-ring"/>
-              <p className="rv-generating-title">
+              <p className="rv-generating-title" style={{ color: sv.fg }}>
                 {t(lang, 'generating')}<span className="rv-generating-dots"/>
               </p>
-              <p className="rv-funnel-step-sub" style={{ margin: 0 }}>{t(lang, 'generatingSub')}</p>
+              <p className="rv-funnel-step-sub" style={{ margin: 0, color: sv.sub }}>{t(lang, 'generatingSub')}</p>
             </div>
           )}
 
           {/* REVIEW ──────────────────────────── */}
           {step === 'review' && (
             <>
-              <h2 className="rv-funnel-step-title">{t(lang, 'reviewReady')}</h2>
-              <p className="rv-funnel-step-sub">{t(lang, 'reviewSub')}</p>
+              <h2 className="rv-funnel-step-title" style={{ color: sv.fg }}>{t(lang, 'reviewReady')}</h2>
+              <p className="rv-funnel-step-sub" style={{ color: sv.sub }}>{t(lang, 'reviewSub')}</p>
 
               <div className="rv-review-card">
                 {editing ? (
@@ -446,6 +458,7 @@ export default function FunnelFlow({
               {!copied && (
                 <button
                   className="rv-btn rv-btn-primary"
+                  style={{ background: sv.btnBg, color: sv.btnFg }}
                   onClick={() => handleCopyAndGo(isMultiPlatform ? undefined : resolvedPlatforms[0])}
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -502,8 +515,8 @@ export default function FunnelFlow({
           {/* PRIVATE FEEDBACK ────────────────── */}
           {step === 'private' && (
             <>
-              <h2 className="rv-funnel-step-title">{t(lang, 'privateTitle')}</h2>
-              <p className="rv-funnel-step-sub">{t(lang, 'privateSub')}</p>
+              <h2 className="rv-funnel-step-title" style={{ color: sv.fg }}>{t(lang, 'privateTitle')}</h2>
+              <p className="rv-funnel-step-sub" style={{ color: sv.sub }}>{t(lang, 'privateSub')}</p>
               <textarea
                 className="rv-private-textarea"
                 placeholder={t(lang, 'privatePlaceholder')}
@@ -513,6 +526,7 @@ export default function FunnelFlow({
               />
               <button
                 className="rv-btn rv-btn-primary"
+                style={{ background: sv.btnBg, color: sv.btnFg }}
                 onClick={handlePrivateSubmit}
                 disabled={!privateFb.trim() || submitting}
               >
@@ -533,8 +547,8 @@ export default function FunnelFlow({
                   <path d="M8 18l7 7 13-13" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </div>
-              <p className="rv-success-title">{t(lang, 'successTitle')}</p>
-              <p className="rv-success-sub">
+              <p className="rv-success-title" style={{ color: sv.fg }}>{t(lang, 'successTitle')}</p>
+              <p className="rv-success-sub" style={{ color: sv.sub }}>
                 {rating >= (business.minRatingForGoogle ?? 4)
                   ? t(lang, 'successGoogle')
                   : t(lang, 'successSub')}

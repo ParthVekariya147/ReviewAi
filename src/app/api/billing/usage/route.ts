@@ -22,11 +22,17 @@ export async function GET() {
   }
   if (!biz) return NextResponse.json({ error: 'No business found' }, { status: 404 });
 
-  const { data: sub } = await db
-    .from('subscriptions')
-    .select('current_period_end, plan, status')
-    .eq('business_id', biz.id as string)
-    .maybeSingle();
+  const [subResult, planPriceResult] = await Promise.all([
+    db.from('subscriptions')
+      .select('current_period_end, plan, status')
+      .eq('business_id', biz.id as string)
+      .maybeSingle(),
+    db.from('plan_prices')
+      .select('plan, review_limit, scan_limit, campaign_limit, trial_days')
+      .order('amount_cents'),
+  ]);
+
+  const sub = subResult.data;
 
   // Determine billing period
   const now = new Date();
@@ -48,7 +54,13 @@ export async function GET() {
 
   const sinceIso = periodStart.toISOString();
   const plan     = sub?.plan ?? biz.plan ?? 'free';
-  const limits   = getPlanLimits(plan);
+
+  // Prefer DB-stored limits; fall back to hardcoded constants if column missing
+  const dbRow = (planPriceResult.data ?? []).find(r => r.plan === plan);
+  const limits = dbRow && 'review_limit' in dbRow
+    ? { reviews: dbRow.review_limit, scans: dbRow.scan_limit, campaigns: dbRow.campaign_limit }
+    : getPlanLimits(plan);
+  const trialDays = dbRow && 'trial_days' in dbRow ? dbRow.trial_days : null;
 
   // All aggregations run in DB — no unbounded row fetch into memory (migration 022)
   const [eventCountsResult, dailyResult, campaignResult, campaignsResult] = await Promise.all([
@@ -90,6 +102,7 @@ export async function GET() {
     days_elapsed:    daysElapsed,
     projected_total: projectedTotal,
     avg_per_day:     Math.round(reviewsUsed / daysElapsed),
+    trial_days:      trialDays,
     limits: {
       reviews:   limits.reviews,
       scans:     limits.scans,

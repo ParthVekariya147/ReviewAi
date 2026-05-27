@@ -233,15 +233,20 @@ export const Switch = ({ checked, onChange, label, sub }: SwitchProps) => (
 
 /* ========================= FIELD / INPUT / SELECT ========================= */
 export interface FieldProps {
-  label?: string;
+  label?: React.ReactNode;
   hint?: string;
   error?: string;
+  required?: boolean;
   children: React.ReactNode;
 }
 
-export const Field = ({ label, hint, children, error }: FieldProps) => (
+export const Field = ({ label, hint, children, error, required }: FieldProps) => (
   <div className="lp-field">
-    {label && <label className="lp-field-lbl">{label}</label>}
+    {label && (
+      <label className="lp-field-lbl">
+        {label}{required && <span style={{ color: '#EF4444', marginLeft: 2 }}>*</span>}
+      </label>
+    )}
     {children}
     {error && <div className="lp-field-err">{error}</div>}
     {hint && !error && <div className="lp-field-hint">{hint}</div>}

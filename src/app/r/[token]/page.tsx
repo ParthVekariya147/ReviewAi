@@ -20,7 +20,8 @@ async function lookupToken(token: string): Promise<BusinessData | null> {
         id, token, status,
         businesses (
           name, tagline, google_link, brand_color,
-          logo_initials, logo_url, min_rating_for_google, language, review_platforms
+          logo_initials, logo_url, min_rating_for_google, language, review_platforms,
+          funnel_style, funnel_heading, funnel_sub
         )
       `)
       .eq('token', token)
@@ -34,6 +35,7 @@ async function lookupToken(token: string): Promise<BusinessData | null> {
       brand_color: string; logo_initials: string; logo_url: string | null;
       min_rating_for_google: number; language: string;
       review_platforms: ReviewPlatformEntry[] | null;
+      funnel_style: string | null; funnel_heading: string | null; funnel_sub: string | null;
     };
 
     // Use saved platforms; fall back to google_link so old records still work
@@ -52,6 +54,9 @@ async function lookupToken(token: string): Promise<BusinessData | null> {
       logoUrl:            biz.logo_url    ?? null,
       minRatingForGoogle: biz.min_rating_for_google,
       language:           biz.language,
+      funnelStyle:        biz.funnel_style   ?? 'elegant',
+      funnelHeading:      biz.funnel_heading ?? null,
+      funnelSub:          biz.funnel_sub     ?? null,
     };
   } catch {
     return null;

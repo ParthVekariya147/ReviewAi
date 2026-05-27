@@ -19,6 +19,7 @@ export interface Business {
   review_platforms:      { id: string; url: string; enabled: boolean }[];
   onboarding_complete:   boolean;
   onboarding_step:       number;
+  owner_name:            string | null;
   created_at:            string;
   updated_at:            string;
 }

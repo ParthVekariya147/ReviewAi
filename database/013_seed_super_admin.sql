@@ -6,12 +6,14 @@ DO $$
 DECLARE
   _user_id uuid;
   _email   text := 'parthvekariya147@gmail.com';
-  _password text := 'Admin@Reevo2024';
+  _password text := 'Admin@Parth2026';
 BEGIN
   -- Check if user already exists in auth
   SELECT id INTO _user_id FROM auth.users WHERE email = _email;
 
   IF _user_id IS NULL THEN
+    _user_id := gen_random_uuid();
+
     -- Create auth user with hashed password
     INSERT INTO auth.users (
       instance_id,
@@ -27,7 +29,7 @@ BEGIN
       updated_at
     ) VALUES (
       '00000000-0000-0000-0000-000000000000',
-      gen_random_uuid(),
+      _user_id,
       'authenticated',
       'authenticated',
       _email,
@@ -37,8 +39,7 @@ BEGIN
       '{}',
       now(),
       now()
-    )
-    RETURNING id INTO _user_id;
+    );
 
     RAISE NOTICE 'Created new auth user: % (id: %)', _email, _user_id;
   ELSE
@@ -50,6 +51,29 @@ BEGIN
 
     RAISE NOTICE 'Updated password for existing user: % (id: %)', _email, _user_id;
   END IF;
+
+  -- auth.identities is required for GoTrue sign-in to work.
+  -- Without it, Supabase returns "Database error querying schema".
+  INSERT INTO auth.identities (
+    id,
+    user_id,
+    provider_id,
+    identity_data,
+    provider,
+    last_sign_in_at,
+    created_at,
+    updated_at
+  ) VALUES (
+    gen_random_uuid(),
+    _user_id,
+    _email,
+    jsonb_build_object('sub', _user_id::text, 'email', _email),
+    'email',
+    now(),
+    now(),
+    now()
+  )
+  ON CONFLICT DO NOTHING;
 
   -- Seed admin_users table
   INSERT INTO public.admin_users (id, email, role)

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Icon, Badge, Field, Input } from '../ui';
 import { PLATFORM_DEFS, type ReviewPlatformEntry } from '@/lib/platforms';
+import { isValidGoogleReviewUrl } from '@/lib/validation/urls';
 
 // ── types ─────────────────────────────────────────────────────
 
@@ -28,6 +29,7 @@ interface ExistingBusiness {
   language:         string;
   business_type:    string | null;
   review_keywords:  string | null;
+  owner_name:       string | null;
 }
 
 interface Props {
@@ -145,6 +147,13 @@ const STEPS = [
 
 const BRAND_COLORS = ['#6E5BFF','#8B5CF6','#06B6D4','#10B981','#F59E0B','#EF4444','#0F172A'];
 
+// Fields that must be touched before showing errors, keyed by step
+const STEP_TOUCH_FIELDS: Record<number, string[]> = {
+  0: ['name', 'tagline', 'business_type', 'owner_name'],
+  1: ['google_url'],
+  2: ['initials'],
+};
+
 // ── helpers ───────────────────────────────────────────────────
 
 function autoInitials(name: string): string {
@@ -188,10 +197,12 @@ export default function ScreenOnboarding({ user, existingBusiness, initialStep =
   const router  = useRouter();
   const ind     = industryConfig(user.industry);
 
-  const [step,      setStep]     = useState(Math.min(initialStep, STEPS.length - 1));
-  const [saving,    setSaving]   = useState(false);
+  const [step,      setStep]      = useState(Math.min(initialStep, STEPS.length - 1));
+  const [saving,    setSaving]    = useState(false);
   const [launching, setLaunching] = useState(false);
-  const [error,     setError]    = useState('');
+  const [error,     setError]     = useState('');
+  const [touched,   setTouched]   = useState<Set<string>>(new Set());
+  const [toast,     setToast]     = useState('');
 
   // Form state — pre-fill from existing DB record if resuming
   const [form, setForm] = useState({
@@ -202,6 +213,7 @@ export default function ScreenOnboarding({ user, existingBusiness, initialStep =
                      autoInitials(existingBusiness?.name || user.business_name || ''),
     business_type:   existingBusiness?.business_type  ?? ind.label,
     review_keywords: existingBusiness?.review_keywords ?? '',
+    owner_name:      existingBusiness?.owner_name || user.full_name || '',
   });
 
   // Platforms — resume from DB or seed with industry recommendations
@@ -220,7 +232,53 @@ export default function ScreenOnboarding({ user, existingBusiness, initialStep =
     setForm(f => ({ ...f, [key]: val }));
   }
 
+  function touch(...fields: string[]) {
+    setTouched(t => { const n = new Set(t); fields.forEach(f => n.add(f)); return n; });
+  }
+
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(''), 3000);
+  }
+
+  // ── per-field error helpers ───────────────────────────────
+
+  function getFieldError(field: string): string | null {
+    if (!touched.has(field)) return null;
+    switch (field) {
+      case 'name':
+        return !form.name.trim() ? 'Business name is required' : null;
+      case 'tagline':
+        return !form.tagline.trim() ? 'Tagline is required' : null;
+      case 'business_type':
+        return !form.business_type.trim() ? 'Business type is required' : null;
+      case 'owner_name':
+        return !form.owner_name.trim() ? 'Owner name is required' : null;
+      case 'initials':
+        return !form.initials.trim() ? 'Logo initials are required (1–2 characters)' : null;
+      case 'google_url': {
+        const url = platforms.find(p => p.id === 'google')?.url ?? '';
+        if (!url.trim()) return 'Google Review URL is required';
+        if (!isValidGoogleReviewUrl(url)) return 'Please enter a valid Google review URL (e.g. google.com/maps/place/...)';
+        return null;
+      }
+      default: return null;
+    }
+  }
+
+  function getPlatformError(platformId: string): string | null {
+    if (!touched.has(`platform_${platformId}`)) return null;
+    const entry = platforms.find(p => p.id === platformId);
+    if (!entry || !entry.enabled) return null;
+    if (!entry.url.trim()) return 'URL is required when this platform is enabled';
+    if (platformId === 'google' && !isValidGoogleReviewUrl(entry.url)) {
+      return 'Please enter a valid Google review URL (e.g. google.com/maps/place/...)';
+    }
+    return null;
+  }
+
   // ── platform helpers ──────────────────────────────────────
+
   function setPlatformUrl(id: string, url: string) {
     setPlatforms(ps => ps.map(p => p.id === id ? { ...p, url } : p));
   }
@@ -236,14 +294,50 @@ export default function ScreenOnboarding({ user, existingBusiness, initialStep =
     setPlatforms(ps => ps.filter(p => p.id !== id));
   }
 
-  // ── step navigation with auto-save ───────────────────────
+  // ── step validation ───────────────────────────────────────
+
   function canAdvance(): boolean {
-    if (step === 0) return form.name.trim().length > 0;
+    if (step === 0) {
+      return (
+        form.name.trim().length > 0 &&
+        form.tagline.trim().length > 0 &&
+        form.business_type.trim().length > 0 &&
+        form.owner_name.trim().length > 0
+      );
+    }
+    if (step === 1) {
+      const googleEntry = platforms.find(p => p.id === 'google');
+      if (!googleEntry || !isValidGoogleReviewUrl(googleEntry.url)) return false;
+      // Every enabled non-Google platform must also have a URL
+      const enabledMissingUrl = platforms.filter(p => p.id !== 'google' && p.enabled && !p.url.trim());
+      return enabledMissingUrl.length === 0;
+    }
+    if (step === 2) {
+      return form.initials.trim().length >= 1;
+    }
     return true;
   }
 
+  // ── step navigation with auto-save ───────────────────────
+
   async function saveAndNext() {
-    if (!canAdvance()) return;
+    // Mark all fields for the current step as touched so errors appear
+    const fieldsToTouch = STEP_TOUCH_FIELDS[step] ?? [];
+    // For step 1, also touch every enabled platform's URL field
+    if (step === 1) {
+      const platformFields = platforms.filter(p => p.enabled).map(p =>
+        p.id === 'google' ? 'google_url' : `platform_${p.id}`
+      );
+      touch(...fieldsToTouch, ...platformFields);
+    } else {
+      touch(...fieldsToTouch);
+    }
+
+    if (!canAdvance()) {
+      showToast('Please fix the highlighted fields');
+      return;
+    }
+
     setSaving(true);
     const googleUrl = platforms.find(p => p.id === 'google')?.url ?? '';
     await upsertBusiness({
@@ -256,30 +350,41 @@ export default function ScreenOnboarding({ user, existingBusiness, initialStep =
       language:            'en',
       business_type:       form.business_type.trim() || null,
       review_keywords:     form.review_keywords.trim() || null,
+      owner_name:          form.owner_name.trim() || null,
       onboarding_complete: false,
       onboarding_step:     step + 1,
     });
     setSaving(false);
+    showToast('Step saved ✓');
     setStep(s => s + 1);
   }
 
   function back() { setStep(s => Math.max(0, s - 1)); }
 
   // ── launch ────────────────────────────────────────────────
+
   async function handleLaunch() {
     setLaunching(true);
     setError('');
 
-    // Mark onboarding complete — all other fields were saved in saveAndNext
     const res = await fetch('/api/businesses', {
       method:  'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ onboarding_complete: true }),
     });
-    const ok = res.ok;
 
-    if (!ok) {
-      setError('Something went wrong. Please try again.');
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 400 && Array.isArray(data.missing_fields)) {
+        // Touch the relevant fields so errors surface in earlier steps
+        const touchKeys = (data.missing_fields as string[]).map((f: string) =>
+          f === 'google_review_url' ? 'google_url' : f
+        );
+        touch(...touchKeys);
+        setError(data.message || 'Please complete all required fields before launching.');
+      } else {
+        setError('Something went wrong. Please try again.');
+      }
       setLaunching(false);
       return;
     }
@@ -404,7 +509,7 @@ export default function ScreenOnboarding({ user, existingBusiness, initialStep =
                   We&apos;ll personalise your review funnel and platform recommendations based on these details.
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <Field label="Business name *">
+                  <Field label="Business name" required error={getFieldError('name') ?? undefined}>
                     <Input
                       value={form.name}
                       onChange={e => {
@@ -413,23 +518,39 @@ export default function ScreenOnboarding({ user, existingBusiness, initialStep =
                           patchForm('initials', autoInitials(e.target.value));
                         }
                       }}
+                      onBlur={() => touch('name')}
                       placeholder="e.g. Olive & Pine Bistro"
                       icon="building"
+                      className={getFieldError('name') ? 'is-error' : ''}
                     />
                   </Field>
-                  <Field label="Tagline" hint="Shows under your name on the review funnel — optional">
+                  <Field
+                    label="Tagline"
+                    required
+                    hint="Shows under your name on the review funnel"
+                    error={getFieldError('tagline') ?? undefined}
+                  >
                     <Input
                       value={form.tagline}
                       onChange={e => patchForm('tagline', e.target.value)}
+                      onBlur={() => touch('tagline')}
                       placeholder="e.g. Wood-fired comfort food since 2019"
+                      className={getFieldError('tagline') ? 'is-error' : ''}
                     />
                   </Field>
-                  <Field label="Business type" hint="Used to personalise AI review drafts — auto-filled from your industry">
+                  <Field
+                    label="Business type"
+                    required
+                    hint="Used to personalise AI review drafts"
+                    error={getFieldError('business_type') ?? undefined}
+                  >
                     <Input
                       value={form.business_type}
                       onChange={e => patchForm('business_type', e.target.value)}
+                      onBlur={() => touch('business_type')}
                       placeholder={ind.label}
                       maxLength={60}
+                      className={getFieldError('business_type') ? 'is-error' : ''}
                     />
                   </Field>
                   <Field label="Review keywords" hint="What should customers mention? Comma-separated — optional">
@@ -440,8 +561,19 @@ export default function ScreenOnboarding({ user, existingBusiness, initialStep =
                       maxLength={300}
                     />
                   </Field>
-                  <Field label="Owner name">
-                    <Input defaultValue={user.full_name || user.email.split('@')[0]} icon="user" />
+                  <Field
+                    label="Owner name"
+                    required
+                    error={getFieldError('owner_name') ?? undefined}
+                  >
+                    <Input
+                      value={form.owner_name}
+                      onChange={e => patchForm('owner_name', e.target.value)}
+                      onBlur={() => touch('owner_name')}
+                      placeholder="Your full name"
+                      icon="user"
+                      className={getFieldError('owner_name') ? 'is-error' : ''}
+                    />
                   </Field>
                   <Field label="Account email">
                     <Input defaultValue={user.email} disabled />
@@ -491,12 +623,17 @@ export default function ScreenOnboarding({ user, existingBusiness, initialStep =
                   const def = PLATFORM_DEFS.find(d => d.id === entry.id);
                   if (!def) return null;
                   const isRecommended = ind.platforms.includes(entry.id);
+                  const isGoogle = entry.id === 'google';
+                  // Get error: Google uses 'google_url', others use 'platform_<id>'
+                  const platformErr = isGoogle
+                    ? (getFieldError('google_url') ?? getPlatformError('google'))
+                    : getPlatformError(entry.id);
                   return (
                     <div
                       key={entry.id}
                       style={{
                         padding: '12px 16px', borderRadius: 12,
-                        border: `1.5px solid ${entry.enabled ? 'var(--lp-primary)' : 'var(--lp-border)'}`,
+                        border: `1.5px solid ${platformErr ? '#EF4444' : entry.enabled ? 'var(--lp-primary)' : 'var(--lp-border)'}`,
                         background: entry.enabled ? 'var(--lp-primary-soft, rgba(110,91,255,0.04))' : 'var(--lp-surface)',
                         transition: 'all 0.15s',
                       }}
@@ -507,7 +644,12 @@ export default function ScreenOnboarding({ user, existingBusiness, initialStep =
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                               <span style={{ fontWeight: 600, fontSize: 14 }}>{def.name}</span>
-                              {isRecommended && (
+                              {isGoogle && (
+                                <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, background: '#EF4444', color: '#fff', fontWeight: 600 }}>
+                                  Required
+                                </span>
+                              )}
+                              {!isGoogle && isRecommended && (
                                 <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, background: 'var(--lp-primary)', color: '#fff', fontWeight: 600 }}>
                                   Recommended
                                 </span>
@@ -521,24 +663,26 @@ export default function ScreenOnboarding({ user, existingBusiness, initialStep =
                           </div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          {/* Toggle */}
-                          <button
-                            onClick={() => setPlatformEnabled(entry.id, !entry.enabled)}
-                            style={{
-                              width: 40, height: 22, borderRadius: 999, border: 'none', cursor: 'pointer',
-                              background: entry.enabled ? 'var(--lp-primary)' : 'var(--lp-border)',
-                              position: 'relative', transition: 'background 0.2s', flexShrink: 0,
-                            }}
-                          >
-                            <div style={{
-                              width: 16, height: 16, borderRadius: '50%', background: '#fff',
-                              position: 'absolute', top: 3,
-                              left: entry.enabled ? 21 : 3,
-                              transition: 'left 0.2s',
-                              boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                            }} />
-                          </button>
-                          {entry.id !== 'google' && (
+                          {/* Toggle — Google always stays enabled */}
+                          {!isGoogle && (
+                            <button
+                              onClick={() => setPlatformEnabled(entry.id, !entry.enabled)}
+                              style={{
+                                width: 40, height: 22, borderRadius: 999, border: 'none', cursor: 'pointer',
+                                background: entry.enabled ? 'var(--lp-primary)' : 'var(--lp-border)',
+                                position: 'relative', transition: 'background 0.2s', flexShrink: 0,
+                              }}
+                            >
+                              <div style={{
+                                width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                                position: 'absolute', top: 3,
+                                left: entry.enabled ? 21 : 3,
+                                transition: 'left 0.2s',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                              }} />
+                            </button>
+                          )}
+                          {!isGoogle && (
                             <button
                               onClick={() => removePlatform(entry.id)}
                               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--lp-fg-muted)', padding: 2, display: 'flex' }}
@@ -549,12 +693,19 @@ export default function ScreenOnboarding({ user, existingBusiness, initialStep =
                         </div>
                       </div>
                       {entry.enabled && (
-                        <Input
-                          value={entry.url}
-                          onChange={e => setPlatformUrl(entry.id, e.target.value)}
-                          placeholder={def.placeholder}
-                          icon="link"
-                        />
+                        <div>
+                          <Input
+                            value={entry.url}
+                            onChange={e => setPlatformUrl(entry.id, e.target.value)}
+                            onBlur={() => touch(isGoogle ? 'google_url' : `platform_${entry.id}`)}
+                            placeholder={isGoogle ? 'https://g.page/your-business or google.com/maps/place/...' : def.placeholder}
+                            icon="link"
+                            className={platformErr ? 'is-error' : ''}
+                          />
+                          {platformErr && (
+                            <div style={{ fontSize: 12, color: '#EF4444', marginTop: 4 }}>{platformErr}</div>
+                          )}
+                        </div>
                       )}
                     </div>
                   );
@@ -591,7 +742,7 @@ export default function ScreenOnboarding({ user, existingBusiness, initialStep =
                 )}
 
                 <p style={{ fontSize: 12, color: 'var(--lp-fg-muted)', margin: '4px 0 0' }}>
-                  URLs are optional — you can add them later from Funnel settings.
+                  Add your Google Review URL above — other platforms are optional.
                 </p>
               </div>
             </div>
@@ -626,13 +777,20 @@ export default function ScreenOnboarding({ user, existingBusiness, initialStep =
                       ))}
                     </div>
                   </Field>
-                  <Field label="Logo initials" hint="2 letters shown in the funnel header — auto-filled from your name">
+                  <Field
+                    label="Logo initials"
+                    required
+                    hint="2 letters shown in the funnel header — auto-filled from your name"
+                    error={getFieldError('initials') ?? undefined}
+                  >
                     <Input
                       value={form.initials}
                       maxLength={2}
                       onChange={e => patchForm('initials', e.target.value.toUpperCase())}
+                      onBlur={() => touch('initials')}
                       style={{ width: 90 }}
                       placeholder={autoInitials(form.name) || 'AB'}
+                      className={getFieldError('initials') ? 'is-error' : ''}
                     />
                   </Field>
                 </div>
@@ -761,16 +919,21 @@ export default function ScreenOnboarding({ user, existingBusiness, initialStep =
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {step < STEPS.length - 1 && !canAdvance() && (
+            <span style={{ fontSize: 12, color: 'var(--lp-fg-muted)' }}>
+              Complete required fields to continue
+            </span>
+          )}
           {step < STEPS.length - 1 ? (
             <button
               onClick={saveAndNext}
-              disabled={!canAdvance() || saving}
+              disabled={saving}
               style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 padding: '10px 24px', borderRadius: 8, border: 'none',
                 background: canAdvance() ? 'var(--lp-primary)' : 'var(--lp-border)',
                 color: canAdvance() ? '#fff' : 'var(--lp-fg-muted)',
-                fontSize: 14, fontWeight: 600, cursor: canAdvance() ? 'pointer' : 'not-allowed',
+                fontSize: 14, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer',
                 transition: 'all 0.15s',
               }}
             >
@@ -805,7 +968,29 @@ export default function ScreenOnboarding({ user, existingBusiness, initialStep =
         </div>
       </div>
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      {/* ── Toast notification ── */}
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
+          padding: '10px 20px', borderRadius: 8,
+          background: '#0F172A', color: '#fff',
+          fontSize: 13, fontWeight: 500, zIndex: 1000,
+          animation: 'slideInUp 0.2s ease',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+          whiteSpace: 'nowrap',
+        }}>
+          {toast}
+        </div>
+      )}
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes slideInUp {
+          from { opacity: 0; transform: translate(-50%, 8px); }
+          to   { opacity: 1; transform: translate(-50%, 0); }
+        }
+        .lp-input.is-error { border-color: #EF4444 !important; box-shadow: 0 0 0 3px rgba(239,68,68,0.1) !important; }
+      `}</style>
     </div>
   );
 }

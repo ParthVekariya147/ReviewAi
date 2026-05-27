@@ -11,13 +11,14 @@ export async function GET() {
   const db = createAdminClient();
 
   const [pricesRes, busRes] = await Promise.all([
-    db.from('plan_prices').select('plan, amount_cents, currency, updated_at').order('amount_cents'),
+    db.from('plan_prices')
+      .select('plan, amount_cents, currency, label, trial_days, review_limit, scan_limit, campaign_limit, updated_at')
+      .order('amount_cents'),
     db.from('businesses').select('plan'),
   ]);
 
   if (pricesRes.error) return NextResponse.json({ error: pricesRes.error.message }, { status: 500 });
 
-  // Count businesses per plan
   const counts: Record<string, number> = {};
   for (const b of busRes.data ?? []) {
     counts[b.plan] = (counts[b.plan] ?? 0) + 1;
@@ -32,6 +33,8 @@ export async function GET() {
   return NextResponse.json({ data });
 }
 
+const VALID_PLANS = ['free', 'starter', 'pro', 'enterprise'];
+
 export async function PATCH(request: NextRequest) {
   const result = await requireAdmin();
   if ('error' in result) return result.error;
@@ -41,23 +44,47 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
   }
 
-  const VALID_PLANS = ['free', 'starter', 'pro', 'enterprise'];
-  const { plan, amount_cents } = await request.json().catch(() => ({}));
+  const body = await request.json().catch(() => ({}));
+  const { plan, amount_cents, trial_days, review_limit, scan_limit, campaign_limit } = body;
+
   if (!plan || !VALID_PLANS.includes(plan)) {
     return NextResponse.json({ error: `plan must be one of: ${VALID_PLANS.join(', ')}` }, { status: 400 });
   }
-  if (typeof amount_cents !== 'number' || !Number.isInteger(amount_cents) || amount_cents < 0) {
-    return NextResponse.json({ error: 'amount_cents must be a non-negative integer' }, { status: 400 });
+
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
+  if (amount_cents !== undefined) {
+    if (typeof amount_cents !== 'number' || !Number.isInteger(amount_cents) || amount_cents < 0) {
+      return NextResponse.json({ error: 'amount_cents must be a non-negative integer' }, { status: 400 });
+    }
+    patch.amount_cents = amount_cents;
+  }
+
+  if (trial_days !== undefined) {
+    if (trial_days !== null && (typeof trial_days !== 'number' || !Number.isInteger(trial_days) || trial_days < 1)) {
+      return NextResponse.json({ error: 'trial_days must be a positive integer or null' }, { status: 400 });
+    }
+    patch.trial_days = trial_days;
+  }
+
+  for (const [key, val] of [['review_limit', review_limit], ['scan_limit', scan_limit], ['campaign_limit', campaign_limit]] as const) {
+    if (val !== undefined) {
+      if (typeof val !== 'number' || !Number.isInteger(val) || (val < -1)) {
+        return NextResponse.json({ error: `${key} must be -1 (unlimited) or a positive integer` }, { status: 400 });
+      }
+      patch[key] = val;
+    }
+  }
+
+  if (Object.keys(patch).length === 1) {
+    return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
   }
 
   const db = createAdminClient();
-  const { error } = await db
-    .from('plan_prices')
-    .update({ amount_cents, updated_at: new Date().toISOString() })
-    .eq('plan', plan);
+  const { error } = await db.from('plan_prices').update(patch).eq('plan', plan);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await writeAuditLog(ctx.user.id, 'plan.price_updated', 'plan', plan, { amount_cents, admin: ctx.user.email });
+  await writeAuditLog(ctx.user.id, 'plan.limits_updated', 'plan', plan, { ...patch, admin: ctx.user.email });
   return NextResponse.json({ ok: true });
 }

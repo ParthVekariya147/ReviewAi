@@ -24,6 +24,9 @@ interface Business {
   review_platforms?:     ReviewPlatformEntry[] | null;
   review_keywords?:      string | null;
   business_type?:        string | null;
+  funnel_style?:         string | null;
+  funnel_heading?:       string | null;
+  funnel_sub?:           string | null;
 }
 
 interface UserInfo { id: string; email: string; full_name: string }
@@ -244,11 +247,10 @@ export default function ScreenFunnel({ initialBusiness }: Props) {
     kpis.completes,
   ] : null;
 
-  // Local-only funnel presentation state (not yet persisted to DB)
   const [funnel, setFunnel] = useState({
-    style:       'elegant',
-    heading:     initialBusiness?.name ? `Thanks for visiting ${initialBusiness.name}!` : 'Thanks for visiting!',
-    sub:         "We'd love to hear about your experience.",
+    style:       initialBusiness?.funnel_style   ?? 'elegant',
+    heading:     initialBusiness?.funnel_heading ?? (initialBusiness?.name ? `Thanks for visiting ${initialBusiness.name}!` : 'Thanks for visiting!'),
+    sub:         initialBusiness?.funnel_sub     ?? "We'd love to hear about your experience.",
     tone:        'warm',
     reviewCount: 3,
   });
@@ -331,6 +333,9 @@ export default function ScreenFunnel({ initialBusiness }: Props) {
       review_platforms:      normalizedPlatforms,
       review_keywords:       talkingPoints.join(', ') || null,
       google_link:           googleUrl || null,
+      funnel_style:          funnel.style,
+      funnel_heading:        funnel.heading || null,
+      funnel_sub:            funnel.sub     || null,
     });
     setSaveState(ok ? 'saved' : 'error');
     if (ok) setTimeout(() => setSaveState('idle'), 2500);

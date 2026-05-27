@@ -19,9 +19,13 @@ const MODERN_SELECT = [
   'review_platforms',
   'onboarding_complete',
   'onboarding_step',
+  'owner_name',
   'business_type',
   'review_keywords',
   'review_length_preference',
+  'funnel_style',
+  'funnel_heading',
+  'funnel_sub',
   'created_at',
   'updated_at',
 ].join(', ');
@@ -110,9 +114,15 @@ export function normalizeBusiness(business: BusinessRow | null): BusinessRow | n
     onboarding_step: typeof business.onboarding_step === 'number'
       ? business.onboarding_step
       : 0,
+    owner_name: typeof business.owner_name === 'string' ? business.owner_name : null,
     review_length_preference: Array.isArray(business.review_length_preference)
       ? business.review_length_preference
       : ['short', 'medium'],
+    funnel_style: typeof business.funnel_style === 'string' && business.funnel_style
+      ? business.funnel_style
+      : 'elegant',
+    funnel_heading: typeof business.funnel_heading === 'string' ? business.funnel_heading : null,
+    funnel_sub: typeof business.funnel_sub === 'string' ? business.funnel_sub : null,
   };
 }
 

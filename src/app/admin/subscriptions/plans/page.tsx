@@ -10,9 +10,22 @@ interface PlanRow {
   plan: Plan;
   amount_cents: number;
   currency: string;
+  label: string;
+  trial_days: number | null;
+  review_limit: number;
+  scan_limit: number;
+  campaign_limit: number;
   updated_at: string;
   business_count: number;
   mrr_cents: number;
+}
+
+interface DraftLimits {
+  amount_cents: string;
+  trial_days: string;
+  review_limit: string;
+  scan_limit: string;
+  campaign_limit: string;
 }
 
 function fmtMoney(cents: number, currency = 'usd') {
@@ -21,13 +34,9 @@ function fmtMoney(cents: number, currency = 'usd') {
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
-
-const PLAN_FEATURES: Record<Plan, string[]> = {
-  free:       ['1 QR code', '50 scans/mo', 'Basic AI drafts', 'Public landing page'],
-  starter:    ['5 QR codes', '500 scans/mo', 'AI drafts (2/scan)', 'Custom branding', 'Analytics'],
-  pro:        ['Unlimited QR', '5,000 scans/mo', 'A/B testing', 'Priority AI', 'Advanced analytics', 'Webhooks'],
-  enterprise: ['Unlimited everything', 'Custom limits', 'SLA support', 'SSO/SAML', 'Audit logs', 'Dedicated CSM'],
-};
+function fmtLimit(val: number) {
+  return val === -1 ? 'Unlimited' : val.toLocaleString();
+}
 
 const PLAN_ORDER: Plan[] = ['free', 'starter', 'pro', 'enterprise'];
 
@@ -35,7 +44,7 @@ export default function PlansPage() {
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Plan | null>(null);
-  const [draftPrice, setDraftPrice] = useState('');
+  const [draft, setDraft] = useState<DraftLimits>({ amount_cents: '', trial_days: '', review_limit: '', scan_limit: '', campaign_limit: '' });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
 
@@ -53,29 +62,45 @@ export default function PlansPage() {
 
   function startEdit(plan: PlanRow) {
     setEditing(plan.plan);
-    setDraftPrice((plan.amount_cents / 100).toFixed(2));
+    setDraft({
+      amount_cents:   (plan.amount_cents / 100).toFixed(2),
+      trial_days:     plan.trial_days != null ? String(plan.trial_days) : '',
+      review_limit:   String(plan.review_limit),
+      scan_limit:     String(plan.scan_limit),
+      campaign_limit: String(plan.campaign_limit),
+    });
     setSaveError('');
   }
 
   function cancelEdit() {
     setEditing(null);
-    setDraftPrice('');
     setSaveError('');
   }
 
-  async function savePrice(plan: Plan) {
-    const amount_cents = Math.round(parseFloat(draftPrice) * 100);
-    if (isNaN(amount_cents) || amount_cents < 0) {
-      setSaveError('Enter a valid price');
+  async function savePlan(plan: Plan) {
+    const amount_cents = Math.round(parseFloat(draft.amount_cents) * 100);
+    if (isNaN(amount_cents) || amount_cents < 0) { setSaveError('Valid price required'); return; }
+
+    const trial_days_raw = draft.trial_days.trim();
+    const trial_days = trial_days_raw === '' ? null : parseInt(trial_days_raw, 10);
+    if (trial_days !== null && (isNaN(trial_days) || trial_days < 1)) { setSaveError('Trial days: positive number or leave blank for no expiry'); return; }
+
+    const review_limit   = parseInt(draft.review_limit, 10);
+    const scan_limit     = parseInt(draft.scan_limit, 10);
+    const campaign_limit = parseInt(draft.campaign_limit, 10);
+    if ([review_limit, scan_limit, campaign_limit].some(v => isNaN(v) || v < -1)) {
+      setSaveError('Limits must be -1 (unlimited) or a positive number');
       return;
     }
+
     setSaving(true);
     setSaveError('');
     const res = await fetch('/api/admin/plans', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan, amount_cents }),
+      body: JSON.stringify({ plan, amount_cents, trial_days, review_limit, scan_limit, campaign_limit }),
     });
+
     if (res.ok) {
       setEditing(null);
       load();
@@ -88,31 +113,29 @@ export default function PlansPage() {
 
   const totalBusinesses = plans.reduce((s, p) => s + p.business_count, 0) || 1;
   const totalMrr = plans.reduce((s, p) => s + p.mrr_cents, 0);
-
   const orderedPlans = PLAN_ORDER.map(p => plans.find(r => r.plan === p)).filter(Boolean) as PlanRow[];
 
   return (
     <>
-      <AdminTopbar breadcrumbs={['Admin', 'Subscriptions', 'Plan Config']} pageTitle="Plan Configuration"/>
+      <AdminTopbar breadcrumbs={['Admin', 'Subscriptions', 'Plan Config']} pageTitle="Plan Configuration" />
 
       <main style={{ padding: '28px 32px', width: '100%', boxSizing: 'border-box' }}>
 
         {/* MRR summary strip */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 28, flexWrap: 'wrap' }}>
           {[
-            { icon: <MdAttachMoney size={18}/>, label: 'Total Est. MRR', value: fmtMoney(totalMrr), accent: true },
-            { icon: <MdPeople size={18}/>, label: 'Total Businesses', value: totalBusinesses.toLocaleString(), accent: false },
-            { icon: <MdTrendingUp size={18}/>, label: 'Paid Ratio', value: `${Math.round(((totalBusinesses - (plans.find(p => p.plan === 'free')?.business_count ?? 0)) / totalBusinesses) * 100)}%`, accent: false },
+            { icon: <MdAttachMoney size={18} />, label: 'Total Est. MRR', value: fmtMoney(totalMrr), accent: true },
+            { icon: <MdPeople size={18} />, label: 'Total Businesses', value: totalBusinesses.toLocaleString(), accent: false },
+            {
+              icon: <MdTrendingUp size={18} />, label: 'Paid Ratio', accent: false,
+              value: `${Math.round(((totalBusinesses - (plans.find(p => p.plan === 'free')?.business_count ?? 0)) / totalBusinesses) * 100)}%`,
+            },
           ].map(item => (
             <div key={item.label} style={{
               background: item.accent ? 'var(--accent)' : 'var(--surface)',
               border: `1px solid ${item.accent ? 'transparent' : 'var(--border)'}`,
-              borderRadius: 'var(--radius-md)',
-              padding: '14px 22px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              minWidth: 170,
+              borderRadius: 'var(--radius-md)', padding: '14px 22px',
+              display: 'flex', alignItems: 'center', gap: 12, minWidth: 170,
             }}>
               <span style={{ color: item.accent ? 'rgba(255,255,255,0.8)' : 'var(--muted)' }}>{item.icon}</span>
               <div>
@@ -123,15 +146,15 @@ export default function PlansPage() {
           ))}
         </div>
 
-        {/* Plan cards grid */}
+        {/* Plan cards */}
         {loading ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
-            {[1,2,3,4].map(i => (
-              <div key={i} style={{ height: 320, borderRadius: 'var(--radius-md)', background: 'var(--surface)', border: '1px solid var(--border)', animation: 'skeleton-pulse 1.4s ease-in-out infinite' }}/>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} style={{ height: 400, borderRadius: 'var(--radius-md)', background: 'var(--surface)', border: '1px solid var(--border)', animation: 'skeleton-pulse 1.4s ease-in-out infinite' }} />
             ))}
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
             {orderedPlans.map(plan => {
               const isEditing = editing === plan.plan;
               const pct = Math.round((plan.business_count / totalBusinesses) * 100);
@@ -140,12 +163,8 @@ export default function PlansPage() {
                 <div key={plan.plan} style={{
                   background: 'var(--surface)',
                   border: `1px solid ${plan.plan === 'pro' ? 'var(--accent)' : 'var(--border)'}`,
-                  borderRadius: 'var(--radius-md)',
-                  padding: 22,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 14,
-                  position: 'relative',
+                  borderRadius: 'var(--radius-md)', padding: 22,
+                  display: 'flex', flexDirection: 'column', gap: 14, position: 'relative',
                 }}>
                   {plan.plan === 'pro' && (
                     <span style={{
@@ -155,18 +174,16 @@ export default function PlansPage() {
                     }}>Most Popular</span>
                   )}
 
-                  {/* Plan header */}
+                  {/* Header */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <PlanBadge plan={plan.plan}/>
-                    {plan.plan !== 'free' && (
-                      <button
-                        onClick={() => isEditing ? cancelEdit() : startEdit(plan)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 4, display: 'flex', borderRadius: 6 }}
-                        title={isEditing ? 'Cancel' : 'Edit price'}
-                      >
-                        {isEditing ? <MdClose size={16}/> : <MdEdit size={16}/>}
-                      </button>
-                    )}
+                    <PlanBadge plan={plan.plan} />
+                    <button
+                      onClick={() => isEditing ? cancelEdit() : startEdit(plan)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 4, display: 'flex', borderRadius: 6 }}
+                      title={isEditing ? 'Cancel' : 'Edit plan'}
+                    >
+                      {isEditing ? <MdClose size={16} /> : <MdEdit size={16} />}
+                    </button>
                   </div>
 
                   {/* Price */}
@@ -175,36 +192,21 @@ export default function PlansPage() {
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         <span style={{ fontSize: 18, color: 'var(--ink)', fontWeight: 700 }}>$</span>
                         <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={draftPrice}
-                          onChange={e => setDraftPrice(e.target.value)}
+                          type="number" min="0" step="0.01" value={draft.amount_cents}
+                          onChange={e => setDraft(d => ({ ...d, amount_cents: e.target.value }))}
                           autoFocus
                           style={{ width: 90, padding: '6px 8px', borderRadius: 'var(--radius-sm)', border: '1.5px solid var(--accent)', background: 'var(--bg-tint)', color: 'var(--ink)', fontSize: 16, fontWeight: 700 }}
-                          onKeyDown={e => { if (e.key === 'Enter') savePrice(plan.plan); if (e.key === 'Escape') cancelEdit(); }}
+                          onKeyDown={e => { if (e.key === 'Escape') cancelEdit(); }}
                         />
                         <span style={{ fontSize: 13, color: 'var(--muted)' }}>/mo</span>
-                        <button
-                          onClick={() => savePrice(plan.plan)}
-                          disabled={saving}
-                          style={{ marginLeft: 2, padding: '5px 8px', borderRadius: 'var(--radius-sm)', background: 'var(--accent)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                        >
-                          <MdCheck size={16}/>
-                        </button>
                       </div>
                     ) : (
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
                         <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--ink)', lineHeight: 1 }}>
                           {plan.amount_cents === 0 ? 'Free' : fmtMoney(plan.amount_cents, plan.currency)}
                         </span>
-                        {plan.amount_cents > 0 && (
-                          <span style={{ fontSize: 12, color: 'var(--muted)' }}>/mo</span>
-                        )}
+                        {plan.amount_cents > 0 && <span style={{ fontSize: 12, color: 'var(--muted)' }}>/mo</span>}
                       </div>
-                    )}
-                    {saveError && isEditing && (
-                      <p style={{ fontSize: 11, color: '#991B1B', marginTop: 4 }}>{saveError}</p>
                     )}
                     <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
                       Last updated {fmtDate(plan.updated_at)}
@@ -233,24 +235,85 @@ export default function PlansPage() {
                     </div>
                     <div style={{ height: 5, background: 'var(--border)', borderRadius: 100, overflow: 'hidden' }}>
                       <div style={{
-                        height: '100%',
-                        width: `${pct}%`,
+                        height: '100%', width: `${pct}%`,
                         background: plan.plan === 'pro' ? 'var(--accent)' : plan.plan === 'enterprise' ? 'linear-gradient(90deg, var(--accent), #7C3AED)' : 'var(--ink-2)',
-                        borderRadius: 100,
-                        transition: 'width 0.5s ease',
-                      }}/>
+                        borderRadius: 100, transition: 'width 0.5s ease',
+                      }} />
                     </div>
                   </div>
 
-                  {/* Features */}
-                  <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {PLAN_FEATURES[plan.plan].map(f => (
-                      <li key={f} style={{ fontSize: 12, color: 'var(--ink-2)', display: 'flex', alignItems: 'center', gap: 7 }}>
-                        <span style={{ color: plan.plan === 'pro' ? 'var(--accent)' : 'var(--muted)', fontSize: 9 }}>●</span>
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
+                  {/* Limits section */}
+                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Limits
+                    </div>
+
+                    {isEditing ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {[
+                          { key: 'trial_days' as const,     label: 'Trial days',     hint: 'blank = no expiry' },
+                          { key: 'review_limit' as const,   label: 'Reviews / mo',   hint: '-1 = unlimited' },
+                          { key: 'scan_limit' as const,     label: 'Scans / mo',     hint: '-1 = unlimited' },
+                          { key: 'campaign_limit' as const, label: 'Campaigns max',  hint: '-1 = unlimited' },
+                        ].map(({ key, label, hint }) => (
+                          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <label style={{ fontSize: 11, color: 'var(--muted)', width: 96, flexShrink: 0 }}>{label}</label>
+                            <input
+                              type="number"
+                              value={draft[key]}
+                              onChange={e => setDraft(d => ({ ...d, [key]: e.target.value }))}
+                              placeholder={hint}
+                              style={{
+                                flex: 1, padding: '5px 8px',
+                                borderRadius: 'var(--radius-sm)',
+                                border: '1.5px solid var(--border)',
+                                background: 'var(--bg-tint)',
+                                color: 'var(--ink)', fontSize: 13,
+                              }}
+                              onKeyDown={e => { if (e.key === 'Escape') cancelEdit(); }}
+                            />
+                          </div>
+                        ))}
+
+                        {saveError && <p style={{ fontSize: 11, color: '#991B1B', margin: 0 }}>{saveError}</p>}
+
+                        <button
+                          onClick={() => savePlan(plan.plan)}
+                          disabled={saving}
+                          style={{
+                            marginTop: 4, padding: '8px 0',
+                            borderRadius: 'var(--radius-sm)',
+                            background: 'var(--accent)', border: 'none',
+                            color: '#fff', cursor: saving ? 'not-allowed' : 'pointer',
+                            fontWeight: 600, fontSize: 13,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                            opacity: saving ? 0.7 : 1,
+                          }}
+                        >
+                          <MdCheck size={15} /> {saving ? 'Saving…' : 'Save changes'}
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {[
+                          { label: 'Trial days',   value: plan.trial_days != null ? `${plan.trial_days} days` : 'No expiry' },
+                          { label: 'Reviews / mo', value: fmtLimit(plan.review_limit) },
+                          { label: 'Scans / mo',   value: fmtLimit(plan.scan_limit) },
+                          { label: 'Campaigns',    value: fmtLimit(plan.campaign_limit) },
+                        ].map(({ label, value }) => (
+                          <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: 12, color: 'var(--muted)' }}>{label}</span>
+                            <span style={{
+                              fontSize: 12, fontWeight: 600,
+                              color: value === 'Unlimited' ? 'var(--accent)' : 'var(--ink)',
+                              background: value === 'Unlimited' ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'var(--bg-tint)',
+                              padding: '2px 8px', borderRadius: 100,
+                            }}>{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -258,7 +321,7 @@ export default function PlansPage() {
         )}
 
         <p style={{ marginTop: 20, fontSize: 12, color: 'var(--muted)' }}>
-          Price edits update <code>plan_prices</code> table and are reflected in billing immediately. Only super_admin can edit prices.
+          Changes update <code>plan_prices</code> table and are reflected immediately. Only super_admin can edit plans.
         </p>
       </main>
     </>

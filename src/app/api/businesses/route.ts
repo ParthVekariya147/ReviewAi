@@ -12,6 +12,7 @@ import {
   sanitizeString, sanitizeColor, sanitizeLang,
   sanitizeRating, sanitizeUrl, sanitizePlatforms,
 } from '@/lib/security/sanitize';
+import { isValidGoogleReviewUrl } from '@/lib/validation/urls';
 
 const VALID_LENGTHS = new Set(['short', 'medium', 'long']);
 
@@ -36,6 +37,7 @@ type BusinessPayload = {
   onboarding_complete: boolean;
   business_type: string | null;
   review_keywords: string | null;
+  owner_name: string | null;
 };
 
 function isMissingUpsertRpcError(error: ApiError) {
@@ -60,6 +62,7 @@ function buildPayload(body: Record<string, unknown> | null, userId: string): Bus
     onboarding_complete:   Boolean(body?.onboarding_complete),
     business_type:         sanitizeString(body?.business_type, 60) || null,
     review_keywords:       sanitizeString(body?.review_keywords, 300) || null,
+    owner_name:            sanitizeString(body?.owner_name, 100) || null,
   };
 }
 
@@ -80,6 +83,7 @@ async function upsertBusinessViaRpc(
     p_onboarding_complete: payload.onboarding_complete,
     p_business_type: payload.business_type,
     p_review_keywords: payload.review_keywords,
+    p_owner_name: payload.owner_name,
   });
 
   return {
@@ -262,9 +266,13 @@ export async function PATCH(req: NextRequest) {
   if ('language'              in body) updates.language              = sanitizeLang(body.language);
   if ('review_platforms'      in body) updates.review_platforms      = sanitizePlatforms(body.review_platforms);
   if ('onboarding_complete'   in body) updates.onboarding_complete   = Boolean(body.onboarding_complete);
-  if ('business_type'             in body) updates.business_type             = sanitizeString(body.business_type, 60) || null;
-  if ('review_keywords'           in body) updates.review_keywords           = sanitizeString(body.review_keywords, 300) || null;
-  if ('review_length_preference'  in body) updates.review_length_preference  = sanitizeReviewLengths(body.review_length_preference);
+  if ('business_type'            in body) updates.business_type            = sanitizeString(body.business_type, 60) || null;
+  if ('review_keywords'          in body) updates.review_keywords          = sanitizeString(body.review_keywords, 300) || null;
+  if ('owner_name'               in body) updates.owner_name               = sanitizeString(body.owner_name, 100) || null;
+  if ('review_length_preference' in body) updates.review_length_preference = sanitizeReviewLengths(body.review_length_preference);
+  if ('funnel_style'   in body) updates.funnel_style   = sanitizeString(body.funnel_style, 20) || 'elegant';
+  if ('funnel_heading' in body) updates.funnel_heading = sanitizeString(body.funnel_heading, 200) || null;
+  if ('funnel_sub'     in body) updates.funnel_sub     = sanitizeString(body.funnel_sub, 300) || null;
 
   for (const key of Object.keys(updates)) {
     if (updates[key] === undefined) delete updates[key];
@@ -319,7 +327,34 @@ export async function PATCH(req: NextRequest) {
     review_keywords: 'review_keywords' in updates
       ? (updates.review_keywords as string | null)
       : ((current.business.review_keywords as string | null) ?? null),
+    owner_name: 'owner_name' in updates
+      ? (updates.owner_name as string | null)
+      : ((current.business.owner_name as string | null) ?? null),
   };
+
+  // ── Guard: validate all required fields before marking onboarding complete ──
+  if (updates.onboarding_complete === true) {
+    const missingFields: string[] = [];
+
+    if (!payload.name.trim())                     missingFields.push('name');
+    if (!payload.tagline?.trim())                 missingFields.push('tagline');
+    if (!payload.business_type?.trim())           missingFields.push('business_type');
+    if (!payload.owner_name?.trim())              missingFields.push('owner_name');
+    if (!payload.logo_initials.trim())            missingFields.push('logo_initials');
+
+    // Google URL must be valid — check review_platforms first, fall back to google_link
+    const googleEntry = payload.review_platforms.find(p => p.id === 'google');
+    const googleUrl = googleEntry?.url?.trim() ? googleEntry.url : (payload.google_link ?? '');
+    if (!isValidGoogleReviewUrl(googleUrl))       missingFields.push('google_review_url');
+
+    if (missingFields.length > 0) {
+      return NextResponse.json({
+        error: 'Incomplete onboarding',
+        missing_fields: missingFields,
+        message: 'Please complete all required fields before launching',
+      }, { status: 400 });
+    }
+  }
 
   let result = current.schema === 'legacy'
     ? await upsertLegacyBusiness(db as Awaited<ReturnType<typeof createClient>>, String(current.business.id), payload)
@@ -350,6 +385,16 @@ export async function PATCH(req: NextRequest) {
     if (result.business) {
       result.business.review_length_preference = updates.review_length_preference;
     }
+  }
+
+  // funnel_style/heading/sub are not in the upsert_business RPC, so save them directly.
+  const funnelUpdates: Record<string, unknown> = {};
+  if ('funnel_style'   in updates) funnelUpdates.funnel_style   = updates.funnel_style;
+  if ('funnel_heading' in updates) funnelUpdates.funnel_heading = updates.funnel_heading;
+  if ('funnel_sub'     in updates) funnelUpdates.funnel_sub     = updates.funnel_sub;
+  if (Object.keys(funnelUpdates).length > 0) {
+    await db.from('businesses').update(funnelUpdates).eq('owner_id', user.id);
+    if (result.business) Object.assign(result.business, funnelUpdates);
   }
 
   const response = NextResponse.json({ business: result.business });

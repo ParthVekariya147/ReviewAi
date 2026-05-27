@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import Sidebar from '@/components/dashboard/Sidebar';
 import Topbar from '@/components/dashboard/Topbar';
+import ProfileIncompleteBanner from '@/components/dashboard/ProfileIncompleteBanner';
 
 const ONBOARDING_PATH = '/app/business_dashboard/onboarding';
 
@@ -35,6 +36,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const email: string    = user.email ?? '';
   const ownerName        = fullName || email.split('@')[0];
 
+  // Detect fields that became required but may be missing for existing users
+  const missingProfileFields: string[] = [];
+  if (biz?.onboarding_complete) {
+    if (!String(biz.tagline ?? '').trim())       missingProfileFields.push('tagline');
+    if (!String(biz.business_type ?? '').trim()) missingProfileFields.push('business_type');
+    if (!String(biz.owner_name ?? '').trim())    missingProfileFields.push('owner_name');
+  }
+
   return (
     <div className="lp-root lp-app">
       <Sidebar
@@ -48,6 +57,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       />
       <main className="lp-main">
         <Topbar ownerName={ownerName} />
+        <ProfileIncompleteBanner missingFields={missingProfileFields} />
         {children}
       </main>
     </div>

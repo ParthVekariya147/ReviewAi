@@ -24,6 +24,7 @@ export default async function OnboardingPage() {
     language:         String(biz.language ?? 'en'),
     business_type:    (biz.business_type as string | null) ?? null,
     review_keywords:  (biz.review_keywords as string | null) ?? null,
+    owner_name:       (biz.owner_name as string | null) ?? null,
   } : null;
 
   return (
