@@ -46,14 +46,15 @@ function getLimiter(limit: number, windowMs: number): Ratelimit {
 
 // ── In-memory fallback (dev / single-instance) ───────────────
 
-// Throw at startup in production if Upstash is not configured — in-memory rate limits
+// Warn (or throw on Vercel) if Upstash is not configured — in-memory rate limits
 // are per-instance and give zero protection against distributed abuse on Vercel serverless.
+// Use VERCEL env var (only set in actual Vercel deployments) instead of NODE_ENV so that
+// local `next start` (production build, no VERCEL) still works without Upstash credentials.
 if (
   typeof process !== 'undefined' &&
-  process.env.NODE_ENV === 'production' &&
   process.env.NEXT_PHASE !== 'phase-production-build'
 ) {
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+  if (process.env.VERCEL && (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN)) {
     throw new Error(
       '[rateLimit] UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set in production. ' +
       'In-memory rate limiting is not safe on multi-instance Vercel deployments. ' +
