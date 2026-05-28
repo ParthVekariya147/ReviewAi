@@ -132,6 +132,14 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
 
   return (
     <>
+      <style>{`
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+        .biz-stat-grid{display:grid;gap:12px;grid-template-columns:repeat(2,1fr)}
+        @media(min-width:640px){.biz-stat-grid{grid-template-columns:repeat(4,1fr)}}
+        .biz-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+        .biz-tabs::-webkit-scrollbar{height:3px}
+        .biz-tabs::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:2px}
+      `}</style>
       <AdminTopbar
         breadcrumbs={['Admin', 'Businesses', biz?.name ?? '…']}
         pageTitle={biz?.name ?? 'Loading…'}
@@ -158,7 +166,7 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
         ) : undefined}
       />
 
-      <main style={{ padding: '24px 32px', width: '100%', boxSizing: 'border-box' }}>
+      <main className="admin-main-pad" style={{ padding: '24px 32px', width: '100%', boxSizing: 'border-box' }}>
         <Link href="/admin/businesses" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--muted)', textDecoration: 'none', marginBottom: 20 }}>
           <MdArrowBack size={14}/> Back to businesses
         </Link>
@@ -212,7 +220,7 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
             )}
 
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
+            <div className="biz-tabs" style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
               {TABS.map(t => (
                 <button key={t.id} onClick={() => setTab(t.id)} style={{
                   padding: '9px 18px', fontSize: 13, fontWeight: tab === t.id ? 600 : 400,
@@ -228,7 +236,7 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
             {/* Overview tab */}
             {tab === 'overview' && (
               <div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+                <div className="biz-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
                   <StatCard label="Total QR Campaigns" value={biz.qr_codes.length}/>
                   <StatCard label="Live Campaigns"      value={biz.qr_codes.filter(q => q.status === 'live').length}/>
                   <StatCard label="Scans (30d)"         value={biz.scans_30d.toLocaleString()} hero/>

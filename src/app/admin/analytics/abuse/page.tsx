@@ -30,7 +30,7 @@ export default function AbusePage() {
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
       <AdminTopbar breadcrumbs={['Admin', 'Analytics', 'Abuse']} pageTitle="Abuse Monitoring" />
 
-      <main style={{ padding: '28px 32px', width: '100%', boxSizing: 'border-box' }}>
+      <main className="admin-main-pad" style={{ padding: '28px 32px', width: '100%', boxSizing: 'border-box' }}>
         <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20 }}>
           QR codes flagged for unusually high scan-to-copy ratios or suspicious volumes.
         </p>
@@ -44,6 +44,7 @@ export default function AbusePage() {
                 No abuse patterns detected.
               </div>
             ) : (
+            <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border-strong)' }}>
@@ -74,6 +75,7 @@ export default function AbusePage() {
                   ))}
                 </tbody>
               </table>
+            </div>
             )}
           </div>
         )}

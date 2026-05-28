@@ -70,7 +70,7 @@ export default function AdminUsersPage() {
     <>
       <AdminTopbar breadcrumbs={['Admin', 'Settings', 'Admin Users']} pageTitle="Admin Users"/>
 
-      <main style={{ padding: '28px 32px', width: '100%', boxSizing: 'border-box' }}>
+      <main className="admin-main-pad" style={{ padding: '28px 32px', width: '100%', boxSizing: 'border-box' }}>
         {/* Invite form */}
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '24px', marginBottom: 24 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', marginBottom: 16 }}>Invite admin user</div>

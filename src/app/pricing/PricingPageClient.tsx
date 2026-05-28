@@ -371,6 +371,11 @@ export default function PricingPageClient({ plans }: { plans: PlanApiRow[] }) {
       <style>{`
         @media (max-width: 1000px) { .pricing-grid { grid-template-columns: 1fr !important; } }
         @media (max-width: 900px)  { .ent-grid { grid-template-columns: 1fr !important; } }
+        @media (max-width: 640px) {
+          .cta-pricing-banner { padding: 40px 24px !important; }
+          .cta-pricing-banner .cta-btns { flex-wrap: wrap !important; }
+          .cta-pricing-banner .cta-btns a { flex: 1 1 auto !important; justify-content: center !important; text-align: center !important; }
+        }
       `}</style>
     </>
   );
@@ -387,7 +392,7 @@ function EnterpriseIcon({ name }: { name: string }) {
 
 function CTABanner() {
   return (
-    <div style={{
+    <div className="cta-pricing-banner" style={{
       position: "relative", overflow: "hidden", borderRadius: 28, padding: "72px 64px",
       background: "linear-gradient(135deg, #0A0A14 0%, #1A1538 60%, #2D2070 100%)",
       color: "white", boxShadow: "0 40px 80px -30px rgba(40,30,120,0.4)",
@@ -406,7 +411,7 @@ function CTABanner() {
         <p style={{ fontSize: 18, color: "rgba(255,255,255,0.7)", marginTop: 18, maxWidth: 540, lineHeight: 1.55 }}>
           Print one QR code, start collecting authentic reviews tonight. Cancel anytime.
         </p>
-        <div style={{ display: "flex", marginTop: 28, gap: 12 }}>
+        <div className="cta-btns" style={{ display: "flex", marginTop: 28, gap: 12 }}>
           <Link href="/signup" className="btn btn-lg" style={{ background: "white", color: "#0A0A14", borderColor: "white" }}>
             Start free trial <ArrowIcon />
           </Link>

@@ -2,8 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getCurrentBusiness } from '@/lib/businesses/current';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
-import Sidebar from '@/components/dashboard/Sidebar';
-import Topbar from '@/components/dashboard/Topbar';
+import DashboardShell from '@/components/dashboard/DashboardShell';
 import ProfileIncompleteBanner from '@/components/dashboard/ProfileIncompleteBanner';
 
 const ONBOARDING_PATH = '/app/business_dashboard/onboarding';
@@ -45,21 +44,20 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   return (
-    <div className="lp-root lp-app">
-      <Sidebar
-        ownerName={ownerName}
-        ownerEmail={email}
-        bizName={String(biz?.name ?? '')}
-        bizInitials={String(biz?.logo_initials ?? '')}
-        bizColor={String(biz?.brand_color ?? '#6366F1')}
-        bizPlan={String(biz?.plan ?? 'free')}
-        bizLogoUrl={(biz?.logo_url as string | null) ?? null}
-      />
-      <main className="lp-main">
-        <Topbar ownerName={ownerName} />
-        <ProfileIncompleteBanner missingFields={missingProfileFields} />
-        {children}
-      </main>
-    </div>
+    <DashboardShell
+      ownerName={ownerName}
+      sidebar={{
+        ownerName,
+        ownerEmail: email,
+        bizName:     String(biz?.name ?? ''),
+        bizInitials: String(biz?.logo_initials ?? ''),
+        bizColor:    String(biz?.brand_color ?? '#6366F1'),
+        bizPlan:     String(biz?.plan ?? 'free'),
+        bizLogoUrl:  (biz?.logo_url as string | null) ?? null,
+      }}
+      banner={<ProfileIncompleteBanner missingFields={missingProfileFields} />}
+    >
+      {children}
+    </DashboardShell>
   );
 }

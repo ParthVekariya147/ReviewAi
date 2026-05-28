@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Icon, Avatar } from './ui';
+import { Icon } from './ui';
 
 const BASE = '/app/business_dashboard';
 
@@ -11,78 +10,71 @@ const NAV_GROUPS = [
   {
     label: 'Overview',
     items: [
-      { id: 'dashboard',     href: BASE,                         label: 'Dashboard',        icon: 'home'     as const },
-      { id: 'funnel',        href: `${BASE}/funnel-manager`,     label: 'Funnel manager',   icon: 'funnel'   as const },
-      { id: 'qr',            href: `${BASE}/qr-dashboard`,       label: 'QR codes',         icon: 'qr'       as const },
-      { id: 'analytics',     href: `${BASE}/analytics`,          label: 'Analytics',        icon: 'bars'     as const },
+      { id: 'dashboard', href: BASE, label: 'Dashboard', icon: 'home' as const },
+      { id: 'funnel', href: `${BASE}/funnel-manager`, label: 'Funnel manager', icon: 'funnel' as const },
+      { id: 'qr', href: `${BASE}/qr-dashboard`, label: 'QR codes', icon: 'qr' as const },
+      { id: 'analytics', href: `${BASE}/analytics`, label: 'Analytics', icon: 'bars' as const },
     ],
   },
   {
     label: 'Records',
     items: [
-      { id: 'history',       href: `${BASE}/history`,            label: 'Review history',   icon: 'history'  as const },
-      { id: 'usage',         href: `${BASE}/usage`,              label: 'Usage',            icon: 'gauge'    as const },
-      { id: 'notifications', href: `${BASE}/notifications`,      label: 'Notifications',    icon: 'bell'     as const },
+      { id: 'history', href: `${BASE}/history`, label: 'Review history', icon: 'history' as const },
+      { id: 'usage', href: `${BASE}/usage`, label: 'Usage', icon: 'gauge' as const },
+      { id: 'notifications', href: `${BASE}/notifications`, label: 'Notifications', icon: 'bell' as const },
     ],
   },
   {
     label: 'Setup',
     items: [
-      { id: 'qr-request',    href: `${BASE}/qr-request`,         label: 'Request QR',       icon: 'plus'     as const },
+      { id: 'qr-request', href: `${BASE}/qr-request`, label: 'Request QR', icon: 'plus' as const },
     ],
   },
 ];
 
 interface SidebarProps {
-  bizName?:     string;
+  bizName?: string;
   bizInitials?: string;
-  bizColor?:    string;
-  bizPlan?:     string;
-  bizLogoUrl?:  string | null;
-  ownerName?:   string;
-  ownerEmail?:  string;
+  bizColor?: string;
+  bizPlan?: string;
+  bizLogoUrl?: string | null;
+  ownerName?: string;
+  ownerEmail?: string;
+  mobileOpen?: boolean;
+  onClose?: () => void;
 }
 
 export default function Sidebar({
-  bizName     = '',
+  bizName = '',
   bizInitials = '',
-  bizColor    = '#6366F1',
-  bizPlan     = 'free',
-  bizLogoUrl  = null,
-  ownerName   = '',
-  ownerEmail  = '',
+  bizColor = '#6366F1',
+  bizPlan = 'free',
+  bizLogoUrl = null,
+  mobileOpen = false,
+  onClose,
 }: SidebarProps) {
-  const pathname  = usePathname();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  /* Close menu on outside click */
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  const pathname = usePathname();
 
   const isActive = (href: string, id: string) => {
     if (id === 'dashboard') return pathname === BASE || pathname === BASE + '/';
     return pathname.startsWith(href);
   };
 
-  async function handleLogout() {
-    setLoggingOut(true);
-    await fetch('/auth/signout', { method: 'POST' });
-    window.location.href = '/login';
-  }
-
   const planLabel = bizPlan === 'pro' ? 'Pro plan' : bizPlan === 'enterprise' ? 'Enterprise' : 'Free plan';
 
   return (
-    <aside className="lp-sidebar">
+    <aside className={`lp-sidebar${mobileOpen ? ' is-mobile-open' : ''}`} style={{ position: 'relative' }}>
+      {/* Close button — only visible on mobile via CSS */}
+      <button
+        className="lp-sidebar-close"
+        onClick={onClose}
+        aria-label="Close menu"
+      >
+        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M6 6l12 12M18 6l-12 12" />
+        </svg>
+      </button>
+
       <div className="lp-brand">
         <div className="lp-brand-mark">R</div>
         <div className="lp-brand-name"><b>Reevo</b></div>
@@ -101,7 +93,7 @@ export default function Sidebar({
           <div className="lp-biz-name lp-truncate">{bizName || 'Your business'}</div>
           <div className="lp-biz-sub">{planLabel}</div>
         </div>
-        <Icon name="chevronD" size={14} className="lp-muted"/>
+        <Icon name="chevronD" size={14} className="lp-muted" />
       </div>
 
       <nav className="lp-sidebar-nav">
@@ -110,8 +102,9 @@ export default function Sidebar({
             <div className="lp-nav-group">{g.label}</div>
             {g.items.map(item => (
               <Link key={item.id} href={item.href}
-                    className={`lp-nav-item ${isActive(item.href, item.id) ? 'is-on' : ''}`}>
-                <Icon name={item.icon} size={16}/>
+                className={`lp-nav-item ${isActive(item.href, item.id) ? 'is-on' : ''}`}
+                onClick={onClose}>
+                <Icon name={item.icon} size={16} />
                 <span>{item.label}</span>
               </Link>
             ))}
@@ -119,70 +112,6 @@ export default function Sidebar({
         ))}
       </nav>
 
-      {/* Footer with user info + settings menu */}
-      <div className="lp-sidebar-foot" ref={menuRef} style={{ position: 'relative' }}>
-        <Avatar name={ownerName || ownerEmail} size={32}/>
-        <div className="lp-foot-info">
-          <div className="lp-foot-name lp-truncate">{ownerName || ownerEmail.split('@')[0]}</div>
-          <div className="lp-foot-sub lp-truncate">{ownerEmail}</div>
-        </div>
-        <button
-          className="lp-btn lp-btn-ghost lp-btn-sm"
-          onClick={() => setMenuOpen(o => !o)}
-          aria-label="User menu"
-          style={{ flexShrink: 0 }}
-        >
-          <Icon name="more" size={16}/>
-        </button>
-
-        {menuOpen && (
-          <div style={{
-            position: 'absolute', bottom: '100%', right: 0, marginBottom: 6,
-            background: 'var(--lp-surface)', border: '1px solid var(--lp-border)',
-            borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-            minWidth: 180, zIndex: 100, overflow: 'hidden',
-          }}>
-            <Link
-              href={`${BASE}/profile`}
-              onClick={() => setMenuOpen(false)}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', fontSize: 13, color: 'var(--lp-fg)', textDecoration: 'none', cursor: 'pointer' }}
-              className="lp-menu-row"
-            >
-              <Icon name="building" size={14}/> Business profile
-            </Link>
-            <Link
-              href={`${BASE}/settings`}
-              onClick={() => setMenuOpen(false)}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', fontSize: 13, color: 'var(--lp-fg)', textDecoration: 'none', cursor: 'pointer' }}
-              className="lp-menu-row"
-            >
-              <Icon name="cog" size={14}/> Settings
-            </Link>
-          </div>
-        )}
-      </div>
-
-      {/* Direct logout row — always visible at bottom */}
-      <div style={{ borderTop: '1px solid var(--lp-border)', padding: '10px 12px' }}>
-        <button
-          onClick={handleLogout}
-          disabled={loggingOut}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-            padding: '8px 10px', borderRadius: 8, border: 'none',
-            background: 'none', cursor: loggingOut ? 'not-allowed' : 'pointer',
-            fontSize: 13, color: 'var(--lp-danger, #ef4444)', fontWeight: 500,
-            opacity: loggingOut ? 0.6 : 1, transition: 'background 0.15s',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.06)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-        >
-          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-          </svg>
-          {loggingOut ? 'Logging out…' : 'Log out'}
-        </button>
-      </div>
     </aside>
   );
 }

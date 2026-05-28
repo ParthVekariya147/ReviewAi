@@ -105,7 +105,7 @@ function DashboardPreview() {
       </div>
 
       {/* Dashboard body */}
-      <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", minHeight: 460 }}>
+      <div className="hero-db-inner" style={{ display: "grid", gridTemplateColumns: "200px 1fr", minHeight: 460 }}>
         {/* Sidebar */}
         <div style={{ borderRight: "1px solid var(--border)", padding: 14, background: "var(--bg-soft)", display: "flex", flexDirection: "column", gap: 4 }}>
           <div className="row" style={{ gap: 8, padding: "6px 8px", marginBottom: 8 }}>
@@ -231,7 +231,7 @@ export default function HeroSection() {
           <p className="lead" style={{ margin: "22px auto 0", textAlign: "center" }}>
             Reevo is the AI-powered QR funnel that helps local businesses convert real, happy customers into 5-star Google reviews — in under a minute, from any phone.
           </p>
-          <div className="row" style={{ justifyContent: "center", gap: 12, marginTop: 32 }}>
+          <div className="row hero-cta-row" style={{ justifyContent: "center", gap: 12, marginTop: 32 }}>
             <Link href="/signup" className="btn btn-primary btn-lg">
               Start free trial
               <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
@@ -261,7 +261,7 @@ export default function HeroSection() {
           </div>
 
           {/* Floating stat cards */}
-          <div className="floater" style={{ left: -32, top: 80 }}>
+          <div className="hero-floater floater" style={{ left: -32, top: 80 }}>
             <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, var(--accent), var(--accent-2))", display: "grid", placeItems: "center", color: "white" }}>
               <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 7V5a2 2 0 012-2h2"/><path d="M17 3h2a2 2 0 012 2v2"/><path d="M21 17v2a2 2 0 01-2 2h-2"/><path d="M7 21H5a2 2 0 01-2-2v-2"/><path d="M3 12h18"/>
@@ -276,7 +276,7 @@ export default function HeroSection() {
             </div>
           </div>
 
-          <div className="floater" style={{ left: 80, bottom: 60 }}>
+          <div className="hero-floater floater" style={{ left: 80, bottom: 60 }}>
             <div className="stars">
               {[1,2,3,4,5].map(i => (
                 <svg key={i} width={14} height={14} viewBox="0 0 24 24" fill="#F5A623" stroke="#F5A623" strokeWidth="1.5" strokeLinejoin="round">

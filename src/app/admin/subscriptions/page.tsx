@@ -97,7 +97,7 @@ export default function SubscriptionsPage() {
     <>
       <AdminTopbar breadcrumbs={['Admin', 'Subscriptions']} pageTitle="Subscriptions & Billing"/>
 
-      <main style={{ padding: '28px 32px', width: '100%', boxSizing: 'border-box' }}>
+      <main className="admin-main-pad" style={{ padding: '28px 32px', width: '100%', boxSizing: 'border-box' }}>
         {fetchError && (
           <div style={{ marginBottom: 16, padding: '10px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--radius-md)', color: '#991B1B', fontSize: 13, display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ flex: 1 }}>Failed to load subscriptions data.</span>
@@ -130,7 +130,7 @@ export default function SubscriptionsPage() {
         )}
 
         {/* Filters */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+        <div className="admin-filter-bar" style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
           <div style={{ position: 'relative', flex: 1, minWidth: 220, maxWidth: 320 }}>
             <MdSearch size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }}/>
             <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search business…"

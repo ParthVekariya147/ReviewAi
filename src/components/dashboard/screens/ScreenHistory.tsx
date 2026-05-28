@@ -155,14 +155,15 @@ export default function ScreenHistory() {
     queryFn:  () => fetcher(privateKey),
   });
 
-  const t           = summaryData?.totals ?? {};
-  const generates   = t['generate'] ?? 0;
-  const completes   = t['complete'] ?? 0;
-  const refreshes   = t['refresh']  ?? 0;
-  const copies      = t['copy']     ?? 0;
-  const scans       = t['scan']     ?? 0;
-  const completion  = generates > 0 ? Math.round((completes / generates) * 1000) / 10 : 0;
-  const conversion  = scans > 0     ? Math.round((completes / scans)     * 1000) / 10 : 0;
+  const t              = summaryData?.totals ?? {};
+  const generatesRaw   = t['generate'] ?? 0;  // unique sessions — used for completion rate denominator
+  const refreshes      = t['refresh']  ?? 0;
+  const generates      = generatesRaw + refreshes;  // total review texts shown to customers
+  const completes      = t['complete'] ?? 0;
+  const copies         = t['copy']     ?? 0;
+  const scans          = t['scan']     ?? 0;
+  const completion     = generatesRaw > 0 ? Math.round((completes / generatesRaw) * 1000) / 10 : 0;
+  const conversion     = scans > 0        ? Math.round((completes / scans)        * 1000) / 10 : 0;
 
   const reviews    = reviewsData?.reviews ?? [];
   const total      = reviewsData?.total   ?? 0;

@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MdLightMode, MdDarkMode, MdSearch } from 'react-icons/md';
+import { MdLightMode, MdDarkMode, MdSearch, MdMenu } from 'react-icons/md';
 import Breadcrumbs from './breadcrumbs';
+import { useAdminMobileMenu } from './AdminMobileCtx';
 
 interface TopbarProps {
   breadcrumbs: string[];
@@ -12,6 +13,7 @@ interface TopbarProps {
 
 export default function AdminTopbar({ breadcrumbs, pageTitle, actions }: TopbarProps) {
   const [dark, setDark] = useState(false);
+  const { toggle } = useAdminMobileMenu();
 
   useEffect(() => {
     const saved = localStorage.getItem('admin-theme');
@@ -34,7 +36,7 @@ export default function AdminTopbar({ breadcrumbs, pageTitle, actions }: TopbarP
       display: 'flex',
       alignItems: 'center',
       gap: 16,
-      padding: '0 28px',
+      padding: '0 16px 0 20px',
       background: 'var(--surface)',
       borderBottom: '1px solid var(--border)',
       position: 'sticky',
@@ -42,6 +44,27 @@ export default function AdminTopbar({ breadcrumbs, pageTitle, actions }: TopbarP
       zIndex: 30,
       flexShrink: 0,
     }}>
+      {/* Hamburger — hidden on desktop, shown on mobile */}
+      <button
+        onClick={toggle}
+        className="admin-topbar-menu-btn"
+        aria-label="Open menu"
+        style={{
+          display: 'none', /* shown via CSS on mobile */
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 34,
+          height: 34,
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-sm)',
+          background: 'var(--surface)',
+          color: 'var(--muted)',
+          cursor: 'pointer',
+          flexShrink: 0,
+        }}
+      >
+        <MdMenu size={18}/>
+      </button>
       <div style={{ flex: 1, minWidth: 0 }}>
         <Breadcrumbs items={breadcrumbs}/>
         <h1 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.2 }}>
@@ -50,8 +73,8 @@ export default function AdminTopbar({ breadcrumbs, pageTitle, actions }: TopbarP
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {/* ⌘K search hint */}
-        <button style={{
+        {/* ⌘K search hint — hidden on mobile */}
+        <button className="admin-topbar-search" style={{
           display: 'flex',
           alignItems: 'center',
           gap: 6,

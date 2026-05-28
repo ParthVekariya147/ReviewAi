@@ -1,5 +1,5 @@
 import { headers } from 'next/headers';
-import AdminSidebar from './_components/shell/sidebar';
+import AdminShell from './_components/shell/AdminShell';
 
 export const metadata = { title: 'Reevo Admin' };
 
@@ -17,11 +17,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
-      <AdminSidebar adminEmail={adminEmail} adminRole={adminRole}/>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        {children}
-      </div>
-    </div>
+    <AdminShell adminEmail={adminEmail} adminRole={adminRole}>
+      {children}
+    </AdminShell>
   );
 }

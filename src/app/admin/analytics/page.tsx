@@ -67,7 +67,7 @@ export default function AnalyticsPage() {
         }
       />
 
-      <main style={{ padding: '28px 32px', width: '100%', boxSizing: 'border-box' }}>
+      <main className="admin-main-pad" style={{ padding: '28px 32px', width: '100%', boxSizing: 'border-box' }}>
         {fetchError && (
           <div style={{ marginBottom: 16, padding: '10px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--radius-md)', color: '#991B1B', fontSize: 13, display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ flex: 1 }}>Failed to load analytics data.</span>

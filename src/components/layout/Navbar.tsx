@@ -60,20 +60,21 @@ export default function Navbar() {
         </div>
 
         <div className="nav-right">
-          <Link href="/login" className="btn btn-ghost btn-sm">
+          <Link href="/login" className="btn btn-ghost btn-sm nav-right-btn">
             Sign in
           </Link>
-          <Link href="/signup" className="btn btn-primary btn-sm">
+          <Link href="/signup" className="btn btn-primary btn-sm nav-right-btn">
             Start free trial
             <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h14"/><path d="M13 5l7 7-7 7"/>
             </svg>
           </Link>
           <button
-            className="btn btn-ghost btn-sm"
-            style={{ padding: 8, display: "none" }}
+            className="btn btn-ghost btn-sm nav-menu-btn"
+            style={{ padding: 8 }}
             onClick={() => setMobileOpen((o) => !o)}
             aria-label="Menu"
+            aria-expanded={mobileOpen}
           >
             <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
               {mobileOpen ? (

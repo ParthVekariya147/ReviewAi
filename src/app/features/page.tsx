@@ -379,7 +379,8 @@ export default function FeaturesPage() {
               <h2 className="h2" style={{ marginTop: 18 }}>Built for review velocity, not generic feedback.</h2>
             </div>
             <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-              <table className="table">
+              <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+              <table className="table" style={{ minWidth: 560 }}>
                 <thead>
                   <tr>
                     <th></th>
@@ -399,6 +400,7 @@ export default function FeaturesPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         </section>

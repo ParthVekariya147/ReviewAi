@@ -46,7 +46,7 @@ export default function AuditLogsPage() {
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
       <AdminTopbar breadcrumbs={['Admin', 'Analytics', 'Audit Logs']} pageTitle="Audit Logs" />
 
-      <main style={{ padding: '28px 32px', width: '100%', boxSizing: 'border-box' }}>
+      <main className="admin-main-pad" style={{ padding: '28px 32px', width: '100%', boxSizing: 'border-box' }}>
         {/* Filter bar */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center' }}>
           <select
@@ -76,9 +76,9 @@ export default function AuditLogsPage() {
             <div key={log.id} style={{ padding: '12px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12, fontSize: 12 }}>
               <StatusBadge status={log.action} />
               <span style={{ color: 'var(--muted)' }}>by</span>
-              <span style={{ fontWeight: 500, color: 'var(--ink-2)' }}>{log.actor_email ?? 'System'}</span>
+              <span style={{ fontWeight: 500, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{log.actor_email ?? 'System'}</span>
               {log.target_type && (
-                <span style={{ color: 'var(--muted)', fontSize: 11 }}>
+                <span style={{ color: 'var(--muted)', fontSize: 11, whiteSpace: 'nowrap' }}>
                   {log.target_type} · {log.target_id?.slice(0, 8)}
                 </span>
               )}

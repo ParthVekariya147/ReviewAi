@@ -36,24 +36,26 @@ as $$
   ),
 
   -- Aggregate current period totals
+  -- generates = generate + refresh (total review texts shown to customers)
   curr_agg as (
     select
-      count(*) filter (where event_type = 'scan')     as scans,
-      count(*) filter (where event_type = 'generate') as generates,
-      count(*) filter (where event_type = 'redirect') as redirects,
-      count(*) filter (where event_type = 'complete') as completes,
-      count(*) filter (where event_type = 'refresh')  as refreshes,
-      count(*) filter (where event_type = 'copy')     as copies
+      count(*) filter (where event_type = 'scan')                            as scans,
+      count(*) filter (where event_type in ('generate', 'refresh'))          as generates,
+      count(*) filter (where event_type = 'generate')                        as generate_sessions,
+      count(*) filter (where event_type = 'redirect')                        as redirects,
+      count(*) filter (where event_type = 'complete')                        as completes,
+      count(*) filter (where event_type = 'refresh')                         as refreshes,
+      count(*) filter (where event_type = 'copy')                            as copies
     from curr_evts
   ),
 
   -- Aggregate previous period totals
   prev_agg as (
     select
-      count(*) filter (where event_type = 'scan')     as scans,
-      count(*) filter (where event_type = 'generate') as generates,
-      count(*) filter (where event_type = 'redirect') as redirects,
-      count(*) filter (where event_type = 'complete') as completes
+      count(*) filter (where event_type = 'scan')                            as scans,
+      count(*) filter (where event_type in ('generate', 'refresh'))          as generates,
+      count(*) filter (where event_type = 'redirect')                        as redirects,
+      count(*) filter (where event_type = 'complete')                        as completes
     from prev_evts
   ),
 
@@ -72,10 +74,10 @@ as $$
     ) as data
     from (
       select
-        to_char(day, 'YYYY-MM-DD')                              as date,
-        count(*) filter (where event_type = 'scan')             as scans,
-        count(*) filter (where event_type = 'generate')         as generates,
-        count(*) filter (where event_type = 'redirect')         as redirects
+        to_char(day, 'YYYY-MM-DD')                                       as date,
+        count(*) filter (where event_type = 'scan')                      as scans,
+        count(*) filter (where event_type in ('generate', 'refresh'))    as generates,
+        count(*) filter (where event_type = 'redirect')                  as redirects
       from curr_evts
       group by day
     ) d

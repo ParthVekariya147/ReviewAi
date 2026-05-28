@@ -500,7 +500,7 @@ export default function ScreenOnboarding({ user, existingBusiness, initialStep =
 
           {/* ── Step 0: Business details ──────────────────────── */}
           {step === 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'start' }}>
+            <div className="ob-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'start' }}>
               <div>
                 <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.03em', margin: '0 0 6px' }}>
                   {user.industry ? `Set up your ${ind.emoji} ${ind.label}` : 'Tell us about your business'}
@@ -750,7 +750,7 @@ export default function ScreenOnboarding({ user, existingBusiness, initialStep =
 
           {/* ── Step 2: Branding ──────────────────────────────── */}
           {step === 2 && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, alignItems: 'start' }}>
+            <div className="ob-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, alignItems: 'start' }}>
               <div>
                 <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.03em', margin: '0 0 6px' }}>
                   Make it yours
@@ -810,7 +810,7 @@ export default function ScreenOnboarding({ user, existingBusiness, initialStep =
 
           {/* ── Step 3: Launch ────────────────────────────────── */}
           {step === 3 && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'start' }}>
+            <div className="ob-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'start' }}>
               <div>
                 <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.03em', margin: '0 0 6px' }}>
                   You&apos;re ready to launch 🚀

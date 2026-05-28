@@ -104,7 +104,7 @@ const TEAM = [
 
 const TeamSection = () => (
   <section className="section">
-    <div className="container">
+    {/* <div className="container">
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 48, alignItems: "end", marginBottom: 40 }} className="team-head">
         <div>
           <span className="eyebrow"><span className="dot" /> Team</span>
@@ -146,7 +146,7 @@ const TeamSection = () => (
         }
         @media (max-width: 600px) { .team-grid { grid-template-columns: 1fr !important; } }
       `}</style>
-    </div>
+    </div> */}
   </section>
 );
 

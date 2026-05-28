@@ -61,7 +61,7 @@ function PageHeader({ title, sub, actions }: { title: string; sub?: string; acti
 
 function SkeletonRow() {
   return (
-    <div className="lp-grid lp-grid-5" style={{ gridTemplateColumns: 'repeat(5,1fr)' }}>
+    <div className="lp-grid lp-grid-5">
       {Array.from({ length: 5 }).map((_, i) => (
         <div key={i} className="lp-card" style={{ padding: 20, minHeight: 96 }}>
           <div style={{ width: 70, height: 11, background: 'var(--lp-border)', borderRadius: 4, marginBottom: 12 }} />
@@ -87,8 +87,8 @@ export default function ScreenAnalytics() {
 
   const t = data?.totals ?? {};
   const scansTotal     = t['scan']     ?? 0;
-  const generatesTotal = t['generate'] ?? 0;
   const refreshesTotal = t['refresh']  ?? 0;
+  const generatesTotal = (t['generate'] ?? 0) + refreshesTotal;
   const copiesTotal    = t['copy']     ?? 0;
   const redirectsTotal = t['redirect'] ?? 0;
   const completesTotal = t['complete'] ?? 0;
@@ -100,7 +100,7 @@ export default function ScreenAnalytics() {
   // Derive sparkline arrays from daily_series
   const ds = data?.daily_series ?? [];
   const scansSpark     = ds.slice(-14).map(d => d.scan     ?? 0);
-  const generatesSpark = ds.slice(-14).map(d => d.generate ?? 0);
+  const generatesSpark = ds.slice(-14).map(d => (d.generate ?? 0) + (d.refresh ?? 0));
   const refreshesSpark = ds.slice(-14).map(d => d.refresh  ?? 0);
   const copiesSpark    = ds.slice(-14).map(d => d.copy     ?? 0);
   const redirectsSpark = ds.slice(-14).map(d => d.redirect ?? 0);
@@ -172,7 +172,7 @@ export default function ScreenAnalytics() {
 
       {/* KPI Stats */}
       {isLoading ? <SkeletonRow /> : (
-        <div className="lp-grid lp-grid-5" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+        <div className="lp-grid lp-grid-5">
           <Stat label="QR scans"          icon="qr"       value={scansTotal}     sparkData={scansSpark}     tone="primary" />
           <Stat label="Reviews generated" icon="sparkles" value={generatesTotal} sparkData={generatesSpark} tone="violet" />
           <Stat label="Refreshes"         icon="refresh"  value={refreshesTotal} sparkData={refreshesSpark} tone="warning" />

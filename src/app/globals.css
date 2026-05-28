@@ -505,7 +505,7 @@ button { font-family: inherit; }
 }
 
 /* utilities */
-.row { display: flex; align-items: center; gap: 12px; }
+.row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .col { display: flex; flex-direction: column; gap: 12px; }
 .between { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .mono { font-family: var(--font-mono); }
@@ -827,6 +827,10 @@ button { font-family: inherit; }
 .lp-foot-name { font-size: 13px; font-weight: 600; }
 .lp-foot-sub { font-size: 11px; color: var(--lp-fg-muted); }
 
+.lp-menu-row { transition: background 0.12s; }
+.lp-menu-row:hover { background: var(--lp-surface-raised) !important; }
+.lp-menu-danger:hover { background: rgba(239,68,68,0.06) !important; }
+
 .lp-main { display: flex; flex-direction: column; min-width: 0; }
 .lp-topbar {
   display: flex; align-items: center; justify-content: space-between;
@@ -885,13 +889,26 @@ button { font-family: inherit; }
 .lp-num, .lp-mono, .lp-page code { font-family: "Geist Mono", ui-monospace, monospace; font-feature-settings: "tnum"; }
 
 @media (max-width: 1100px) {
-  .lp-grid-5, .lp-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .lp-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lp-grid-5, .lp-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .lp-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
 }
 @media (max-width: 720px) {
-  .lp-grid-2, .lp-grid-3, .lp-grid-4, .lp-grid-5 { grid-template-columns: 1fr; }
+  /* !important so inline gridTemplateColumns on bare .lp-grid cannot override breakpoints */
+  .lp-grid, .lp-grid-2, .lp-grid-3, .lp-grid-4, .lp-grid-5 { grid-template-columns: 1fr !important; }
   .lp-app { grid-template-columns: 1fr; }
-  .lp-sidebar { display: none; }
+  .lp-sidebar {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    height: 100vh !important;
+    z-index: 200;
+    width: 280px;
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+  }
+  .lp-sidebar.is-mobile-open {
+    transform: translateX(0);
+  }
 }
 
 /* ── Card ── */
@@ -1844,3 +1861,301 @@ button { font-family: inherit; }
 .rv-invalid p  { font-size: 14px; margin: 0; line-height: 1.6; }
 @keyframes lp-fadeup { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes lp-spin    { to { transform: rotate(360deg); } }
+
+/* =========================================================
+   Responsive Overrides — Marketing + Dashboard
+   ========================================================= */
+
+/* ── Marketing Navbar: hamburger button ── */
+.nav-menu-btn { display: none !important; }
+@media (max-width: 900px) {
+  .nav-menu-btn { display: flex !important; }
+}
+/* Hide Sign-in / CTA from nav-right on very small screens — they appear in mobile menu */
+@media (max-width: 480px) {
+  .nav-right-btn { display: none !important; }
+}
+
+/* ── Marketing Navbar: mobile padding ── */
+@media (max-width: 480px) {
+  .nav-inner { padding: 12px 16px !important; gap: 12px !important; }
+}
+
+/* ── Marketing Hero: hide floaters on medium/small screens ── */
+@media (max-width: 1100px) {
+  .hero-floater { display: none !important; }
+}
+/* Hero dashboard inner grid: single col on mobile (sidebar hidden) */
+@media (max-width: 860px) {
+  .hero-db-inner > :first-child { display: none !important; }
+  .hero-db-inner { grid-template-columns: 1fr !important; }
+}
+
+/* ── Marketing Hero: CTA buttons wrap before they overflow ── */
+.hero-cta-row { flex-wrap: wrap !important; }
+@media (max-width: 640px) {
+  .hero-cta-row { flex-direction: column !important; align-items: center !important; gap: 10px !important; width: 100%; }
+  .hero-cta-row .btn { width: 100% !important; max-width: 320px; justify-content: center; box-sizing: border-box; }
+}
+
+/* ── Marketing Testimonials: carousel card padding ── */
+@media (max-width: 720px) {
+  .testimonials-card { padding: 24px 20px !important; }
+  .testimonials-quote { font-size: 18px !important; line-height: 1.45 !important; }
+}
+
+/* ── Marketing Footer: single column on mobile ── */
+@media (max-width: 480px) {
+  .footer-grid { grid-template-columns: 1fr 1fr !important; gap: 32px !important; }
+  .footer-grid > :first-child { grid-column: 1 / -1; }
+  .footer-bottom { flex-direction: column; gap: 6px; align-items: flex-start; }
+  .footer { padding: 48px 0 24px; }
+}
+
+/* ── Auth pages: single col on mobile ── */
+.auth-grid { grid-template-columns: 1fr !important; }
+@media (min-width: 720px) {
+  .auth-grid { grid-template-columns: 1.1fr 1fr !important; }
+}
+@media (max-width: 720px) {
+  .auth-right-panel { display: none !important; }
+  .auth-left-panel { padding: 40px 24px !important; }
+}
+
+/* ── Dashboard: Mobile sidebar overlay ── */
+.lp-sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 199;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+@media (max-width: 720px) {
+  .lp-sidebar-overlay { display: block; }
+}
+
+/* ── Dashboard: Sidebar close button (mobile only) ── */
+.lp-sidebar-close {
+  display: none;
+  position: absolute;
+  top: 12px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--lp-border);
+  border-radius: 7px;
+  background: var(--lp-bg-subtle);
+  place-items: center;
+  color: var(--lp-fg-muted);
+  cursor: pointer;
+}
+.lp-sidebar-close:hover { background: var(--lp-border-soft); color: var(--lp-fg); }
+@media (max-width: 720px) {
+  .lp-sidebar-close { display: grid !important; }
+}
+
+/* ── Dashboard: Topbar mobile menu button ── */
+.lp-topbar-menu-btn {
+  display: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--lp-border);
+  background: var(--lp-surface);
+  place-items: center;
+  color: var(--lp-fg-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  font-family: inherit;
+}
+.lp-topbar-menu-btn:hover { background: var(--lp-bg-subtle); color: var(--lp-fg); }
+@media (max-width: 720px) {
+  .lp-topbar-menu-btn { display: grid !important; }
+  .lp-topbar { padding: 10px 16px; }
+  .lp-topbar-search { display: none !important; }
+}
+
+/* ── Dashboard: Page header stacking on mobile ── */
+@media (max-width: 720px) {
+  .lp-page { padding: 16px; }
+  .lp-page-hd {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px;
+  }
+  .lp-page-act {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .lp-h1 { font-size: 20px !important; }
+}
+
+/* ── Dashboard: Onboarding stepper collapse ── */
+@media (max-width: 1000px) {
+  .lp-onb-stepper { grid-template-columns: repeat(4, 1fr) !important; }
+}
+@media (max-width: 580px) {
+  .lp-onb-stepper { grid-template-columns: repeat(2, 1fr) !important; }
+  .lp-onb-body { padding: 20px 16px !important; min-height: 380px !important; }
+  .lp-onb-foot { padding: 12px 16px !important; }
+}
+
+/* ── Dashboard: Table overflow on mobile ── */
+@media (max-width: 720px) {
+  .lp-card { overflow-x: auto; }
+  .lp-table-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .lp-table-toolbar .lp-input { max-width: 100%; }
+  .lp-table-foot { flex-direction: column; gap: 8px; align-items: flex-start; }
+  .lp-perm-row { grid-template-columns: 1fr repeat(4, 32px) !important; font-size: 11px; padding: 8px 0; }
+}
+
+/* ── Dashboard: Quick actions on mobile ── */
+@media (max-width: 480px) {
+  .lp-quick { grid-template-columns: repeat(2, 1fr) !important; }
+  .lp-mini-stats { grid-template-columns: 1fr 1fr !important; }
+}
+
+/* ── Dashboard: Settings sidebar nav → horizontal scrollable strip on mobile ── */
+@media (max-width: 720px) {
+  .lp-sett-nav {
+    position: static !important;
+    display: flex !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    gap: 0 !important;
+    padding: 4px !important;
+    scrollbar-width: none;
+  }
+  .lp-sett-nav::-webkit-scrollbar { display: none; }
+  .lp-sett-nav-item {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    padding: 7px 12px !important;
+    font-size: 12px !important;
+  }
+}
+
+/* ── Ensure no horizontal overflow on any screen ── */
+@media (max-width: 720px) {
+  .lp-flow-canvas { padding: 12px 0; }
+  .lp-heat-wrap { overflow-x: auto; }
+}
+
+/* =========================================================
+   Admin Panel Responsive Overrides
+   ========================================================= */
+
+/* ── Admin topbar: hamburger shown on mobile ── */
+@media (max-width: 768px) {
+  .admin-topbar-menu-btn { display: flex !important; }
+  .admin-topbar-search   { display: none !important; }
+}
+
+/* ── Admin main content: reduce padding on mobile ── */
+@media (max-width: 768px) {
+  .admin-page-content { padding: 16px !important; }
+}
+
+/* ── Admin settings: FieldRow stacks on mobile ── */
+.admin-field-row { display: flex; align-items: flex-start; gap: 16px; }
+@media (max-width: 640px) {
+  .admin-field-row { flex-direction: column !important; gap: 6px !important; }
+  .admin-field-label { width: auto !important; }
+}
+
+/* ── Admin filter toolbars: already wrap, but ensure search grows ── */
+@media (max-width: 640px) {
+  .admin-filter-bar { flex-direction: column !important; align-items: stretch !important; }
+  .admin-filter-bar > * { width: 100% !important; max-width: 100% !important; min-width: 0 !important; }
+}
+
+/* ── Admin stat/chart grids: ensure they don't overflow ── */
+@media (max-width: 480px) {
+  .admin-stat-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ── Admin page padding utility ── */
+.admin-main-pad { padding: 28px 32px; }
+@media (max-width: 768px) {
+  .admin-main-pad { padding: 16px !important; }
+}
+
+/* ── Admin topbar: reduce padding on mobile ── */
+@media (max-width: 768px) {
+  .admin-topbar-inner { padding: 0 12px 0 16px !important; }
+}
+
+/* =========================================================
+   Marketing Pages — Responsive Overrides
+   ========================================================= */
+
+/* ── About page: stats strip 4-col → 2-col → 1-col ── */
+@media (max-width: 720px) {
+  .ab-stats { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (max-width: 400px) {
+  .ab-stats { grid-template-columns: 1fr !important; }
+}
+
+/* ── About page: story section sidebar collapses ── */
+@media (max-width: 800px) {
+  .ab-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
+  .ab-grid .sticky-aside { position: static !important; top: 0 !important; }
+}
+
+/* ── About page: values 3-col → 2-col → 1-col ── */
+@media (max-width: 900px) {
+  .val-grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (max-width: 580px) {
+  .val-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ── About page: team header + team grid ── */
+@media (max-width: 800px) {
+  .team-head { grid-template-columns: 1fr !important; gap: 16px !important; }
+}
+@media (max-width: 900px) {
+  .team-grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (max-width: 580px) {
+  .team-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ── Features page: 2-col deep-dive section ── */
+@media (max-width: 800px) {
+  .features-2col { grid-template-columns: 1fr !important; gap: 32px !important; }
+  .features-2col .sticky-aside { position: static !important; top: 0 !important; }
+}
+
+/* ── Features page: comparison table — horizontal scroll on mobile ── */
+@media (max-width: 720px) {
+  .features-compare-wrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+}
+
+/* ── Marketing: ensure all inline-grid sections with no class collapse ── */
+@media (max-width: 580px) {
+  .logos-strip { grid-template-columns: repeat(2, 1fr) !important; gap: 16px !important; }
+}
+
+/* ── MobileExperience: 2-col grid collapses on tablet/mobile ── */
+@media (max-width: 900px) {
+  .me-grid { grid-template-columns: 1fr !important; gap: 40px !important; }
+}
+
+/* ── CTASection: inner card reduces padding on mobile ── */
+@media (max-width: 640px) {
+  .cta-card-inner { padding: 48px 28px !important; border-radius: 20px !important; }
+}
+
+/* ── Onboarding: 2-col step layouts collapse on mobile ── */
+@media (max-width: 720px) {
+  .ob-2col { grid-template-columns: 1fr !important; gap: 24px !important; }
+}

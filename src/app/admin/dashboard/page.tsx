@@ -93,7 +93,7 @@ export default function DashboardPage() {
         }
       />
 
-      <main style={{ padding: '28px 32px', width: '100%', boxSizing: 'border-box' }}>
+      <main className="admin-main-pad" style={{ padding: '28px 32px', width: '100%', boxSizing: 'border-box' }}>
         {/* Stat cards */}
         <div className="admin-stat-grid" style={{ marginBottom: 20 }}>
           {loading

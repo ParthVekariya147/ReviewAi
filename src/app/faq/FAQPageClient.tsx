@@ -153,7 +153,7 @@ export default function FAQPageClient() {
             <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 56 }} className="faq-grid">
               {/* Sidebar */}
               <div className="sticky-aside">
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <div className="faq-sidebar-nav" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   {FAQ_GROUPS.map((g, i) => (
                     <button
                       key={i}
@@ -210,7 +210,13 @@ export default function FAQPageClient() {
       </main>
       <Footer />
 
-      <style>{`@media (max-width: 900px) { .faq-grid { grid-template-columns: 1fr !important; } }`}</style>
+      <style>{`
+        @media (max-width: 900px) {
+          .faq-grid { grid-template-columns: 1fr !important; }
+          .faq-grid .sticky-aside { position: static !important; top: 0 !important; }
+          .faq-sidebar-nav { display: none !important; }
+        }
+      `}</style>
     </>
   );
 }

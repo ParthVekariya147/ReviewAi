@@ -170,7 +170,7 @@ export default function PlansPage() {
     <>
       <AdminTopbar breadcrumbs={['Admin', 'Subscriptions', 'Plan Config']} pageTitle="Plan Configuration" />
 
-      <main style={{ padding: '28px 32px', width: '100%', boxSizing: 'border-box' }}>
+      <main className="admin-main-pad" style={{ padding: '28px 32px', width: '100%', boxSizing: 'border-box' }}>
 
         {/* MRR summary strip */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 28, flexWrap: 'wrap' }}>

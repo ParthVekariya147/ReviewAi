@@ -19,9 +19,9 @@ const BrandMark = () => (
 
 export default function LoginPage() {
   return (
-    <div style={{ minHeight: "100vh", display: "grid", gridTemplateColumns: "1.1fr 1fr" }} className="auth-grid">
+    <div style={{ minHeight: "100vh", display: "grid" }} className="auth-grid">
       {/* Left panel — form */}
-      <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: "60px 72px", background: "var(--bg)", position: "relative" }}>
+      <div className="auth-left-panel" style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: "60px 72px", background: "var(--bg)", position: "relative" }}>
         <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: 10, textDecoration: "none", position: "absolute", top: 28, left: 36 }}>
           <BrandMark />
           <span style={{ fontSize: 17, fontWeight: 600, color: "var(--ink)", letterSpacing: "-0.02em" }}>Reevo</span>
@@ -58,7 +58,7 @@ export default function LoginPage() {
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
-      }} className="auth-side">
+      }} className="auth-side auth-right-panel">
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 80% 20%, color-mix(in oklab, var(--accent-2) 60%, transparent), transparent 50%), radial-gradient(circle at 10% 90%, color-mix(in oklab, var(--accent) 50%, transparent), transparent 50%)", opacity: 0.6 }} />
         <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)", backgroundSize: "48px 48px", maskImage: "radial-gradient(ellipse at center, black 30%, transparent 80%)", WebkitMaskImage: "radial-gradient(ellipse at center, black 30%, transparent 80%)" }} />
 

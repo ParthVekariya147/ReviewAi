@@ -38,12 +38,12 @@ function SectionCard({ title, icon, children }: { title: string; icon: React.Rea
 
 function FieldRow({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-      <div style={{ width: 200, flexShrink: 0 }}>
+    <div className="admin-field-row" style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+      <div className="admin-field-label" style={{ width: 200, flexShrink: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{label}</div>
         {hint && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{hint}</div>}
       </div>
-      <div style={{ flex: 1 }}>{children}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
     </div>
   );
 }
@@ -162,7 +162,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <main style={{ padding: '28px 32px', width: '100%', maxWidth: 760, boxSizing: 'border-box' }}>
+      <main className="admin-main-pad" style={{ padding: '28px 32px', width: '100%', maxWidth: 760, boxSizing: 'border-box' }}>
         {loading ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {[1, 2, 3].map(i => (

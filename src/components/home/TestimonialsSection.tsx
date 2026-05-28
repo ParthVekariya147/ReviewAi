@@ -62,12 +62,12 @@ export default function TestimonialsSection() {
         </div>
 
         {/* Carousel */}
-        <div className="card" style={{ padding: "40px 44px", background: "linear-gradient(180deg, var(--surface), var(--bg-soft))", borderRadius: 24, boxShadow: "var(--shadow-md)" }}>
+        <div className="card testimonials-card" style={{ padding: "40px 44px", background: "linear-gradient(180deg, var(--surface), var(--bg-soft))", borderRadius: 24, boxShadow: "var(--shadow-md)" }}>
           <div style={{ display: "flex", gap: 14, alignItems: "center", marginBottom: 18 }}>
             <Stars value={5} size={18} />
             <span className="chip accent">{t.metric}</span>
           </div>
-          <p key={idx} className="fade-up" style={{ fontSize: 26, lineHeight: 1.35, letterSpacing: "-0.02em", color: "var(--ink)", fontWeight: 500, margin: 0, maxWidth: 920 }}>
+          <p key={idx} className="fade-up testimonials-quote" style={{ fontSize: 26, lineHeight: 1.35, letterSpacing: "-0.02em", color: "var(--ink)", fontWeight: 500, margin: 0, maxWidth: 920 }}>
             &ldquo;{t.body}&rdquo;
           </p>
           <div className="between" style={{ marginTop: 32 }}>

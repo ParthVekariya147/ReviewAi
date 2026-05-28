@@ -25,49 +25,49 @@ const VALUES = [
   { icon: "globe", t: "Built for the world", b: "24 languages, every continent, time zones that aren't ours." },
 ];
 
-const TEAM = [
-  { name: "Liam Park", role: "Co-founder & CEO", bio: "Ex-Stripe. Once built an espresso machine.", color: "#7B61FF" },
-  { name: "Aanya Sharma", role: "Co-founder & CTO", bio: "Ex-Notion. Wrote Reevo's first 300 lines.", color: "#3B82F6" },
-  { name: "Marcus Hill", role: "Head of Product", bio: "Ex-Linear. Studies funnels like a hobby.", color: "#F4A861" },
-  { name: "Priya Iyer", role: "Head of Design", bio: "Ex-Figma. Cares about button spacing.", color: "#E48BD3" },
-  { name: "Jonas Berg", role: "Head of Engineering", bio: "Ex-Vercel. Loves edge functions.", color: "#7CD8A9" },
-  { name: "Sofía Reyes", role: "Head of Customer Success", bio: "Ex-HubSpot. Onboarded our first 500.", color: "#67C3F2" },
-];
+// const TEAM = [
+//   { name: "Liam Park", role: "Co-founder & CEO", bio: "Ex-Stripe. Once built an espresso machine.", color: "#7B61FF" },
+//   { name: "Aanya Sharma", role: "Co-founder & CTO", bio: "Ex-Notion. Wrote Reevo's first 300 lines.", color: "#3B82F6" },
+//   { name: "Marcus Hill", role: "Head of Product", bio: "Ex-Linear. Studies funnels like a hobby.", color: "#F4A861" },
+//   { name: "Priya Iyer", role: "Head of Design", bio: "Ex-Figma. Cares about button spacing.", color: "#E48BD3" },
+//   { name: "Jonas Berg", role: "Head of Engineering", bio: "Ex-Vercel. Loves edge functions.", color: "#7CD8A9" },
+//   { name: "Sofía Reyes", role: "Head of Customer Success", bio: "Ex-HubSpot. Onboarded our first 500.", color: "#67C3F2" },
+// ];
 
 const INVESTORS = ["Sequoia", "Accel", "Index", "Stripe Press", "First Round", "Floodgate"];
 
 function ValueIcon({ name }: { name: string }) {
   if (name === "shield") return (
     <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>
+      <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" /><path d="M9 12l2 2 4-4" />
     </svg>
   );
   if (name === "heart") return (
     <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z"/>
+      <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z" />
     </svg>
   );
   if (name === "bolt") return (
     <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
     </svg>
   );
   if (name === "users") return (
     <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
-      <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" />
     </svg>
   );
   if (name === "sparkles") return (
     <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8z"/>
-      <path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9z"/>
+      <path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8z" />
+      <path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9z" />
     </svg>
   );
   // globe
   return (
     <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
+      <circle cx="12" cy="12" r="10" /><path d="M2 12h20" /><path d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20" />
     </svg>
   );
 }
@@ -152,7 +152,7 @@ export default function AboutPage() {
 
         {/* Team */}
         <section className="section">
-          <div className="container">
+          {/* <div className="container">
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 48, alignItems: "end", marginBottom: 40 }} className="team-head">
               <div>
                 <span className="eyebrow"><span className="dot" /> Team</span>
@@ -191,7 +191,7 @@ export default function AboutPage() {
                 </div>
               ))}
             </div>
-          </div>
+          </div> */}
         </section>
 
         {/* Backed by */}
@@ -253,7 +253,7 @@ function CTABanner() {
       <div style={{ display: "flex", gap: 12, flexShrink: 0, position: "relative" }}>
         <Link href="/signup" className="btn" style={{ background: "white", color: "var(--ink)", fontWeight: 600 }}>
           Start free
-          <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
+          <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M13 5l7 7-7 7" /></svg>
         </Link>
         <Link href="/demo" className="btn" style={{ background: "rgba(255,255,255,0.12)", color: "white", border: "1px solid rgba(255,255,255,0.18)" }}>
           See a demo
