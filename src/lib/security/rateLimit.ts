@@ -46,21 +46,20 @@ function getLimiter(limit: number, windowMs: number): Ratelimit {
 
 // ── In-memory fallback (dev / single-instance) ───────────────
 
-// Warn (or throw on Vercel) if Upstash is not configured — in-memory rate limits
-// are per-instance and give zero protection against distributed abuse on Vercel serverless.
-// Use VERCEL env var (only set in actual Vercel deployments) instead of NODE_ENV so that
-// local `next start` (production build, no VERCEL) still works without Upstash credentials.
+// Warn if Upstash is not configured on Vercel — in-memory rate limits are per-instance
+// and give zero protection against distributed abuse across serverless functions.
+// We warn rather than throw so the app stays functional without Upstash credentials.
 if (
   typeof process !== 'undefined' &&
-  process.env.NEXT_PHASE !== 'phase-production-build'
+  process.env.NEXT_PHASE !== 'phase-production-build' &&
+  process.env.VERCEL &&
+  (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN)
 ) {
-  if (process.env.VERCEL && (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN)) {
-    throw new Error(
-      '[rateLimit] UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set in production. ' +
-      'In-memory rate limiting is not safe on multi-instance Vercel deployments. ' +
-      'Create a free Upstash Redis database at upstash.com and add the credentials to your environment variables.',
-    );
-  }
+  console.warn(
+    '[rateLimit] UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are not set. ' +
+    'Falling back to in-memory rate limiting — NOT safe for multi-instance Vercel deployments. ' +
+    'Create a free Upstash Redis database at upstash.com and add the credentials to Vercel env vars.',
+  );
 }
 
 interface Window { count: number; resetAt: number }
