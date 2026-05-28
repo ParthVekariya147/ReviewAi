@@ -17,7 +17,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     .from('businesses')
     .select(`
       id, owner_id, name, tagline, google_link, brand_color, logo_initials,
-      plan, suspended_at, suspended_reason, created_at, updated_at,
+      plan, plan_expires_at, suspended_at, suspended_reason, created_at, updated_at,
       subscriptions (id, plan, status, current_period_end, cancel_at_end, provider, provider_id,
         invoices (id, amount_cents, currency, status, provider_inv_id, pdf_url, created_at)
       ),
@@ -106,6 +106,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
     updates.plan = body.plan;
+
+    // plan_expires_at: ISO string → set, null/empty → clear
+    if ('plan_expires_at' in body) {
+      if (body.plan_expires_at) {
+        const d = new Date(body.plan_expires_at);
+        if (isNaN(d.getTime())) {
+          return NextResponse.json({ error: 'plan_expires_at must be a valid ISO date' }, { status: 400 });
+        }
+        updates.plan_expires_at = d.toISOString();
+      } else {
+        updates.plan_expires_at = null;
+      }
+    }
+
     action = 'business.plan_changed';
   }
 

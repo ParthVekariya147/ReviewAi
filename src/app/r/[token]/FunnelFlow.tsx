@@ -116,6 +116,7 @@ async function fetchDrafts(token: string, rating: number): Promise<Draft[]> {
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify({ token, rating }),
   });
+  if (res.status === 402) throw new Error('LIMIT_REACHED');
   if (!res.ok) throw new Error(`Generation failed: ${res.status}`);
   const json = await res.json();
   const arr = Array.isArray(json.drafts) ? json.drafts : [];
@@ -256,8 +257,13 @@ export default function FunnelFlow({
         setEditedText(fetched[0]?.text ?? '');
         track('generate');
         goTo('review');
-      } catch {
-        setGenError('Could not generate a draft. Please try again.');
+      } catch (err) {
+        const isLimit = err instanceof Error && err.message === 'LIMIT_REACHED';
+        setGenError(
+          isLimit
+            ? 'This business has reached its monthly review limit. Please try again later.'
+            : 'Could not generate a draft. Please try again.',
+        );
         goTo('rating');
       }
     } else {

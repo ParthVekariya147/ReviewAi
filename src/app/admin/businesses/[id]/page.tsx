@@ -35,6 +35,7 @@ type Sub = {
 type AuditEntry = { id: string; action: string; actor_email: string | null; meta: Record<string, unknown> | null; created_at: string };
 type BizDetail = {
   id: string; name: string; owner_email: string; plan: Plan;
+  plan_expires_at: string | null;
   suspended_at: string | null; suspended_reason: string | null;
   google_link: string | null; created_at: string; scans_30d: number;
   qr_codes: QRCode[]; subscription: Sub | null; audit_logs: AuditEntry[];
@@ -50,9 +51,10 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
   const [suspendOpen, setSuspendOpen] = useState(false);
   const [suspendReason, setSuspendReason] = useState('');
   const [suspending, setSuspending] = useState(false);
-  const [planChanging, setPlanChanging] = useState(false);
-  const [newPlan, setNewPlan] = useState<Plan | ''>('');
-  const [planChangeOpen, setPlanChangeOpen] = useState(false);
+  const [planChanging, setPlanChanging]   = useState(false);
+  const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [newPlan, setNewPlan]             = useState<Plan | ''>('');
+  const [newExpiry, setNewExpiry]         = useState(''); // ISO date string YYYY-MM-DD or ''
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,14 +79,28 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
     load();
   }
 
+  function openPlanModal() {
+    if (!biz) return;
+    setNewPlan(biz.plan);
+    // pre-fill expiry if already set — convert to YYYY-MM-DD for date input
+    setNewExpiry(biz.plan_expires_at ? biz.plan_expires_at.slice(0, 10) : '');
+    setPlanModalOpen(true);
+  }
+
   async function handlePlanChange() {
     if (!newPlan) return;
     setPlanChanging(true);
     try {
+      const body: Record<string, unknown> = {
+        plan: newPlan,
+        plan_expires_at: newExpiry
+          ? new Date(newExpiry + 'T23:59:59').toISOString()
+          : null,
+      };
       const res  = await fetch(`/api/admin/businesses/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: newPlan }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -92,15 +108,13 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
         return;
       }
       if (data.warning) {
-        toast.warning(data.warning, {
-          duration: 10000,
-          description: 'Check audit logs for details.',
-        });
+        toast.warning(data.warning, { duration: 10000, description: 'Check audit logs for details.' });
       } else {
-        toast.success('Plan updated');
+        toast.success(`Plan updated to ${newPlan}${newExpiry ? ` (expires ${newExpiry})` : ' (permanent)'}`);
       }
-      setPlanChangeOpen(false);
+      setPlanModalOpen(false);
       setNewPlan('');
+      setNewExpiry('');
       load();
     } catch {
       toast.error('Network error. Please try again.');
@@ -123,16 +137,12 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
         pageTitle={biz?.name ?? 'Loading…'}
         actions={biz ? (
           <div style={{ display: 'flex', gap: 8 }}>
-            <select
-              value=""
-              onChange={e => { if (e.target.value) { setNewPlan(e.target.value as Plan); setPlanChangeOpen(true); } }}
-              style={{ padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 12, cursor: 'pointer' }}
+            <button
+              onClick={openPlanModal}
+              style={{ padding: '6px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
             >
-              <option value="">Change plan…</option>
-              {(['free', 'starter', 'pro', 'enterprise'] as Plan[]).map(p => (
-                <option key={p} value={p} disabled={p === biz.plan}>{p}</option>
-              ))}
-            </select>
+              Manage plan
+            </button>
             <button
               onClick={() => setSuspendOpen(true)}
               style={{
@@ -167,7 +177,17 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
               </div>
               <div>
                 <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Plan</div>
-                <PlanBadge plan={biz.subscription?.plan ?? biz.plan}/>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <PlanBadge plan={biz.subscription?.plan ?? biz.plan}/>
+                  {biz.plan_expires_at && (() => {
+                    const expired = new Date(biz.plan_expires_at) < new Date();
+                    return (
+                      <span style={{ fontSize: 11, color: expired ? '#991B1B' : '#92400E', background: expired ? '#FEE2E2' : '#FEF3C7', padding: '2px 6px', borderRadius: 4 }}>
+                        {expired ? 'Expired' : `Until ${fmtDate(biz.plan_expires_at)}`}
+                      </span>
+                    );
+                  })()}
+                </div>
               </div>
               <div>
                 <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 4 }}>Status</div>
@@ -336,15 +356,91 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
         onCancel={() => setSuspendOpen(false)}
       />
 
-      <ConfirmActionModal
-        open={planChangeOpen}
-        title={`Change plan to ${newPlan}?`}
-        description={`This will update ${biz?.name}'s plan from ${biz?.plan} to ${newPlan} immediately.`}
-        confirmLabel="Change plan"
-        loading={planChanging}
-        onConfirm={handlePlanChange}
-        onCancel={() => { setPlanChangeOpen(false); setNewPlan(''); }}
-      />
+      {/* ── Plan management modal ── */}
+      {planModalOpen && biz && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
+             onClick={() => { if (!planChanging) { setPlanModalOpen(false); } }}>
+          <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-md)', padding: 28, width: 440, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}
+               onClick={e => e.stopPropagation()}>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Manage Plan — {biz.name}</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                Current: <strong>{biz.plan}</strong>
+                {biz.plan_expires_at && (
+                  <span style={{ marginLeft: 8, color: new Date(biz.plan_expires_at) < new Date() ? '#991B1B' : '#92400E' }}>
+                    ({new Date(biz.plan_expires_at) < new Date() ? 'expired' : `until ${fmtDate(biz.plan_expires_at)}`})
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Plan selector */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 8 }}>Plan</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {(['free', 'starter', 'pro', 'enterprise'] as Plan[]).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setNewPlan(p)}
+                    style={{
+                      padding: '10px 14px', borderRadius: 'var(--radius-sm)', textAlign: 'left',
+                      border: `2px solid ${newPlan === p ? 'var(--accent)' : 'var(--border)'}`,
+                      background: newPlan === p ? 'var(--accent-soft, #EEF2FF)' : 'var(--surface)',
+                      cursor: 'pointer', fontSize: 13, fontWeight: newPlan === p ? 700 : 500,
+                      color: newPlan === p ? 'var(--accent)' : 'var(--ink)',
+                      textTransform: 'capitalize',
+                    }}
+                  >
+                    {p}
+                    {p === 'enterprise' && <span style={{ fontSize: 10, marginLeft: 4, color: 'var(--muted)' }}>Unlimited</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Expiry date */}
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 6 }}>
+                Plan Expiry Date <span style={{ fontSize: 10, fontWeight: 400, textTransform: 'none' }}>(optional)</span>
+              </label>
+              <input
+                type="date"
+                value={newExpiry}
+                min={new Date().toISOString().slice(0, 10)}
+                onChange={e => setNewExpiry(e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13 }}
+              />
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>
+                {newExpiry
+                  ? `Plan reverts to free after ${newExpiry}.`
+                  : 'Leave blank to assign permanently (no auto-revert).'}
+              </div>
+              {newExpiry && (
+                <button onClick={() => setNewExpiry('')} style={{ marginTop: 4, fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                  Clear expiry → assign permanently
+                </button>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setPlanModalOpen(false); setNewPlan(''); setNewExpiry(''); }}
+                disabled={planChanging}
+                style={{ padding: '8px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePlanChange}
+                disabled={planChanging || !newPlan}
+                style={{ padding: '8px 18px', borderRadius: 'var(--radius-sm)', border: 'none', background: 'var(--accent, #6366F1)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: planChanging ? 'wait' : 'pointer', opacity: !newPlan ? 0.5 : 1 }}
+              >
+                {planChanging ? 'Saving…' : 'Save plan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       id, business_id,
       businesses (
         name, tagline, language, review_platforms,
-        business_type, review_keywords, plan, review_length_preference
+        business_type, review_keywords, plan, plan_expires_at, review_length_preference
       )
     `)
     .eq('token', token)
@@ -64,12 +64,16 @@ export async function POST(req: NextRequest) {
     business_type: string | null;
     review_keywords: string | null;
     plan: string | null;
+    plan_expires_at: string | null;
     review_length_preference: string[] | null;
   };
 
   /* Enforce billing quota — count reviews generated in rolling 30-day window */
   const db = createAdminClient();
-  const limits = getPlanLimits(biz.plan ?? 'free');
+  // If admin set a plan with an expiry and it has passed, revert to free
+  const planExpired = biz.plan_expires_at && new Date(biz.plan_expires_at) < new Date();
+  const effectivePlan = planExpired ? 'free' : (biz.plan ?? 'free');
+  const limits = getPlanLimits(effectivePlan);
   if (limits.reviews !== -1) {
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const { count } = await db
